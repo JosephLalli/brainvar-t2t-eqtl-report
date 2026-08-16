@@ -34,8 +34,62 @@ CT = DATA["sex_contrast"]
 NC = DATA["direction_null_check"]
 RAW = DATA["nan_whole_sample"]
 RAW_XX = DATA["nan_by_arm_raw"]
+HS = DATA["hotspots"]
+HSC = HS["by_contrast"]
+HSW = HS["windows"]
 
 KS = sorted(int(k) for k in CURVE[CELLS[0]])
+
+CONTRAST_ORDER = ["t2t_minus_grch38_linear", "t2t_minus_grch38_graph",
+                  "graph_minus_linear_grch38", "graph_minus_linear_t2t"]
+CONTRAST_LABEL = {
+    "t2t_minus_grch38_linear": "T2T − GRCh38 · linear",
+    "t2t_minus_grch38_graph": "T2T − GRCh38 · graph",
+    "graph_minus_linear_grch38": "graph − linear · GRCh38",
+    "graph_minus_linear_t2t": "graph − linear · T2T",
+}
+REF_KEYS = [k for k in CONTRAST_ORDER if HSC[k]["dimension"] == "reference"]
+WF_KEYS = [k for k in CONTRAST_ORDER if HSC[k]["dimension"] == "workflow"]
+
+# The separation is stated at its weakest point: the smallest reference median against
+# the largest aligner median, and the lowest reference 5th percentile against the
+# highest aligner 95th.
+ref_med_lo = min(HSC[k]["median_window_abs_delta_z"] for k in REF_KEYS)
+wf_med_hi = max(HSC[k]["median_window_abs_delta_z"] for k in WF_KEYS)
+mag_ratio = ref_med_lo / wf_med_hi
+ref_q05 = min(HSC[k]["quantiles_abs_delta_z"]["0.05"] for k in REF_KEYS)
+wf_q95 = max(HSC[k]["quantiles_abs_delta_z"]["0.95"] for k in WF_KEYS)
+
+HSA = HS["annotation_summary"]
+SPLIT = HS["context_split"]
+N_REP = SPLIT["replicating"]["n"]
+N_SNG = SPLIT["single_workflow"]["n"]
+GO_SIG = HS["go"]["significant_terms"]
+GO_SIG_CONTRAST = (CONTRAST_LABEL[GO_SIG[0]["contrast_key"]] if GO_SIG else "")
+RANKSUM = SPLIT["rank_sum_p"]
+# Windows whose every ClinGen-mappable variant sits in a recurrent-CNV breakpoint, and
+# the strongest partial case, named in the prose.
+BP_FULL = sorted((w for w in HSW if w["clingen_breakpoint_fraction"] >= 1.0),
+                 key=lambda w: w["interval"])
+BP_PART = sorted((w for w in HSW if 0 < w["clingen_breakpoint_fraction"] < 1.0),
+                 key=lambda w: -w["clingen_breakpoint_fraction"])
+# The one replicating window that is nonetheless duplication-rich; named on the page so
+# the tendency is not presented as a clean partition.
+SEGDUP_EXCEPTION = max((w for w in HSW if w["replication"] == 2),
+                       key=lambda w: w["segdup_bp_fraction"])
+
+
+def mb(interval: str) -> str:
+    """chr15:82200001-82300000 -> chr15:82.2 Mb"""
+    chrom, span = interval.split(":")
+    return f"{chrom}:{int(span.split('-')[0]) / 1e6:.1f} Mb"
+
+
+def sci(v: float, digits: int = 1) -> str:
+    """5.9059e-08 -> 5.9 × 10<sup>−8</sup>, so exponents read as prose, not as repr."""
+    mant, exp = f"{v:.{digits}e}".split("e")
+    sign = "−" if int(exp) < 0 else ""
+    return f"{mant} × 10<sup>{sign}{abs(int(exp))}</sup>"
 
 
 def ck(arm: str, k: int) -> int:
@@ -150,6 +204,55 @@ t_null = table(
       f'<strong>+{NC[a]["observed"] - NC[a]["null"]:.3f}</strong>']
      for a in CELLS if a in NC],
     cls="numeric")
+
+t_hs_contrast = table(
+    ["Contrast", "Axis", "Matched variants", "Occupied windows", "Windows ≥ 100",
+     "Median window mean |Δ Z|"],
+    [[CONTRAST_LABEL[k],
+      "reference" if HSC[k]["dimension"] == "reference" else "aligner",
+      f'{HSC[k]["matched_variants"]:,}', f'{HSC[k]["windows"]:,}',
+      f'{HSC[k]["windows_ge100"]:,}',
+      f'<strong>{HSC[k]["median_window_abs_delta_z"]:.4f}</strong>']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="Every contrast matches the same gene and the same LiftoverIndel-normalized "
+         "allele, so these are like-for-like comparisons of the same variant on two "
+         "processings of the same donors. Windows are fixed, non-overlapping, and in T2T "
+         "coordinates.")
+
+FRACS = [("segdup_bp_fraction", "Segmental duplication"),
+         ("mappability_bp_fraction", "100-mer mappability"),
+         ("repeat_bp_fraction", "Repeat content"),
+         ("har_bp_fraction", "Human accelerated region")]
+t_hs_context = table(
+    ["Window sequence context, median",
+     f"Recovered by both workflows (n = {N_REP})",
+     f"One workflow only (n = {N_SNG})"],
+    [[name, f'{SPLIT["replicating"][key]:.3f}', f'{SPLIT["single_workflow"][key]:.3f}']
+     for key, name in FRACS],
+    cls="numeric",
+    note=f"Base-pair fractions of each 100-kb window, from native T2T annotation tracks. "
+         f"With {N_REP} windows against {N_SNG} this is a description of the two groups, "
+         f"not a powered test; a two-sided rank-sum comparison of the segmental-duplication "
+         f"fractions returns p = {RANKSUM['segdup_bp_fraction']:.2f}.")
+
+t_hs_windows = table(
+    ["Window (T2T)", "Both workflows", "Variants", "Mean |Δ Z|", "Segdup",
+     "Mappability", "cCRE overlap", "ClinGen recurrent-CNV breakpoint", "Anchor genes"],
+    [[mb(w["interval"]),
+      "yes" if w["replication"] == 2 else "—",
+      f'{w["matched_variants"]:,}',
+      f'{w["mean_abs_delta_z"]:.2f}',
+      f'{w["segdup_bp_fraction"]:.3f}',
+      f'{w["mappability_bp_fraction"]:.3f}',
+      f'{w["ccre_overlap"]:,} / {w["ccre_mappable"]:,}',
+      w["clingen_breakpoint_names"] if w["clingen_breakpoint_variants"] else "—",
+      (w["anchor_genes"].replace(";", ", ") or "—")]
+     for w in HSW],
+    note="The 13 distinct windows ranked in the top ten of either reference contrast, "
+         "ordered by workflow replication and then by segmental-duplication content. "
+         "cCRE overlap is evaluated only among variants with a unique normalized GRCh38 "
+         "position, which is the denominator shown.")
 
 # ----------------------------------------------------------------- prose
 int_total = sum(INT[a]["egenes_q05"] for a in CELLS)
@@ -279,6 +382,7 @@ and what survived the rebuild.">
     <li><a href="#rebuild">Rebuilding, and proving the rebuild</a></li>
     <li><a href="#pcs">How many expression PCs?</a></li>
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
+    <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#interaction">Genotype×sex interaction, and why scale decides it</a></li>
     <li><a href="#stratified">Sex-stratified maps</a></li>
     <li><a href="#contrast">Contrasting effect sizes between sexes</a></li>
@@ -295,6 +399,8 @@ and what survived the rebuild.">
     dosages corrected at the boundary</span></div>
   <div><span class="n">{int_total:,}</span><span class="l">eGenes across the four arms
     at k = 35</span></div>
+  <div><span class="n">{HS["nominal_rows"] / 1e6:.0f}M</span><span class="l">cis pairs in
+    the all-variant nominal scan</span></div>
   <div><span class="n">225</span><span class="l">donors (92 XX, 133 XY)</span></div>
 </div>
 
@@ -433,7 +539,143 @@ headline count much. And the expression scale matters more than the reference do
 log2(CPM+1) yields {log_total:,} eGenes against {int_total:,} for the inverse-normal
 transform, a gap larger than any between-arm difference.</p>
 
-<p>That second observation is not a curiosity. It is the hinge of the next section.</p>
+<p>That second observation is the hinge of the genotype×sex analysis further down. The first
+deserves a harder look before then, because agreement in a headline count is a weak form of
+agreement.</p>
+
+<h2 id="hotspots">Where the references disagree</h2>
+
+<p>Two maps can call almost the same number of eGenes while disagreeing about which variants
+carry the signal and how strongly. A per-arm total is precisely the statistic that would
+conceal that, because it is a count of winners and says nothing about the surface they were
+drawn from. Testing it properly needs the whole surface: every cis variant-gene pair in every
+arm, not just the per-gene best.</p>
+
+<p>That scan is <strong>{HS["nominal_rows"]:,}</strong> tested pairs across the four arms. It
+also functions as an independent audit of everything above, because the permutation-selected
+leads have to reappear in it unchanged. All {HS["lead_bridge"]["matched_rows"]:,} of them do,
+at a maximum absolute effect-size discrepancy of
+{sci(HS["lead_bridge"]["max_abs_beta_error"])} — so the maps in the previous section are
+confirmed by a separately computed surface, not merely re-reported.
+{HS["degenerate_rows_excluded"]} rows out of the {HS["nominal_rows"]:,} carried TensorQTL's
+degenerate zero-variance representation and are excluded from every difference below.</p>
+
+<p>Comparing arms requires one common frame. Each variant is reduced to its
+LiftoverIndel-normalized T2T position, reference and alternate allele, matched across arms on
+that identity together with the gene, and its slope oriented to the T2T alternate allele. Every
+matched variant then yields a difference in test statistic between any two arms. Binned into
+fixed {HS["window_size_bp"] // 1000}-kb windows, those differences separate into two regimes
+that barely touch.</p>
+
+{fig("reference-vs-aligner", "Horizontal box plot on a log scale of per-window mean absolute delta Z for four contrasts, with the two reference contrasts near 0.21 and the two aligner contrasts near 0.02", "Per-window mean |Δ Z| across all eligible 100-kb windows. The two reference contrasts sit an order of magnitude to the right of the two aligner contrasts, and the whiskers — 5th to 95th percentile — do not meet.")}
+
+{t_hs_contrast}
+
+<p>Changing the reference genome moves the effect estimate about
+<strong>{mag_ratio:.0f} times</strong> as much as changing the aligner: a median window mean
+|Δ Z| of {ref_med_lo:.3f} against {wf_med_hi:.3f}. The separation is not a difference of
+averages over overlapping distributions. The 5th percentile of either reference contrast
+({ref_q05:.3f}) sits above the 95th percentile of either aligner contrast ({wf_q95:.3f}), so a
+typically-quiet window under a reference swap is still noisier than an unusually loud window
+under an aligner swap.</p>
+
+<div class="callout">
+<p><strong>What the aligner axis actually measures.</strong> The graph arms are aligned against
+the pangenome and then surjected back into linear coordinates before variant calling, so their
+genotypes are emitted against a linear allele representation. Pangenomic alignment improves
+<em>where reads are placed</em>; after surjection it cannot contribute alleles that the linear
+reference has no way to write down. That is the most economical explanation for why the aligner
+contrasts are an order of magnitude smaller, and it bounds the claim: this comparison measures
+the value of pangenomic read placement, not the value of pangenomic variant representation.
+Those are different propositions and it would be easy to read the first as the second.</p>
+</div>
+
+<p>Within the reference contrasts the discordance is not spread evenly across the genome.
+Ranking windows by mean absolute difference and by the mean within their own upper 5% tail,
+screening the leaders against count-matched windows, and calibrating with
+{HS["rotations"]:,} chromosome-wise circular rotations, leaves
+<strong>{HSA["windows"]} distinct windows</strong> in the top ten of either reference contrast.
+Every one carries at least {HS["minimum_matched_variants"]} exactly matched variants.
+<strong>{HSA["replicating"]} of the {HSA["windows"]}</strong> are recovered by both the linear
+and the graph-surjected workflow, which turns out to be the most informative thing about
+them.</p>
+
+<h3>Replication across workflows is a paralog control</h3>
+
+<p>The obvious worry about any reference-difference result is that it is a mapping artifact
+rather than a mapping improvement. Segmental duplications are where GRCh38 collapses paralogous
+copies onto one locus, and a fixed difference between the copies then reads as a heterozygous
+variant in nearly every donor. If T2T resolves that duplication, the genotype changes character
+and so does the eQTL estimate — but so it would if the reads were simply being misplaced in a
+new way. Segdup enrichment alone cannot separate those two stories, because both predict it.</p>
+
+<p>The four-arm design already contains a discriminator. Because the graph arms use haplotype-
+sampled pangenomic alignment, they resolve paralogous copies that a linear aligner collapses. A
+window whose signal depends on which aligner was used is a window where read placement was
+deciding the answer. A window recovered by both is one where it was not.</p>
+
+{fig("hotspot-context", "Scatter plot of segmental-duplication fraction against mappability for 13 windows, with windows recovered by both workflows clustered at low segdup and high mappability", "The 13 top-ranked windows in sequence context. Those recovered by both workflows cluster at low segmental-duplication content and high mappability; those found by only one spread into duplicated, poorly mappable sequence. chr1:15.9 Mb is the exception that replicates despite high duplication content.")}
+
+{t_hs_context}
+
+<p>The split runs the way the artifact hypothesis predicts it should if the artifact is
+confined to the non-replicating group. Windows recovered by both workflows have a median
+segmental-duplication fraction of {SPLIT["replicating"]["segdup_bp_fraction"]:.3f} and median
+mappability {SPLIT["replicating"]["mappability_bp_fraction"]:.3f}; those found by one workflow
+only sit at {SPLIT["single_workflow"]["segdup_bp_fraction"]:.3f} and
+{SPLIT["single_workflow"]["mappability_bp_fraction"]:.3f}. The aligner axis is behaving as a
+filter on hard sequence, and the {N_REP} windows that survive it are largely ordinary sequence
+where paralog collapse is not an available explanation.</p>
+
+<p>This is a description of {HSA["windows"]} windows, not a test, and it should not be read as
+one — a two-sided rank-sum comparison of the duplication fractions returns
+p = {RANKSUM["segdup_bp_fraction"]:.2f}. One window, {mb(SEGDUP_EXCEPTION["interval"])},
+replicates across workflows while sitting at
+{SEGDUP_EXCEPTION["segdup_bp_fraction"]:.2f} duplication content, so the rule is a tendency
+rather than a partition.</p>
+
+{t_hs_windows}
+
+<h3>What the windows are made of</h3>
+
+<p>Annotating them against ClinGen gives a split result worth stating in both directions.
+<strong>{HSA["clingen_breakpoint_windows"]} of {HSA["windows"]}</strong> windows contain
+variants inside a recurrent-CNV breakpoint or low-copy-repeat interval, and in
+{len(BP_FULL)} of them — {", ".join(mb(w["interval"]) for w in BP_FULL)} — that is true of
+<em>every</em> mappable variant the window contains, not merely some;
+{mb(BP_PART[0]["interval"])} reaches
+{100 * BP_PART[0]["clingen_breakpoint_fraction"]:.0f} percent. But
+<strong>{HSA["clingen_score3_windows"]} of {HSA["windows"]}</strong> fall inside a curated
+region with sufficient evidence for dosage sensitivity. These loci sit in the structural
+scaffolding that makes recurrent CNVs possible, not in the dosage-sensitive intervals whose
+disruption is known to cause disease, and the second fact constrains how much the first is
+allowed to mean.</p>
+
+<p>Of the {HSA["ccre_mappable"]:,} matched variants in these windows with a unique normalized
+GRCh38 position, {HSA["ccre_overlap"]:,} overlap a candidate cis-regulatory element.
+{HSA["haqer_interval_windows"]} windows overlap a human accelerated regulatory region and
+{HSA["haqer_variant_windows"]} contain matched variants inside one.</p>
+
+<p>Gene Ontology was run as a plausibility check against a background of the eligible anchor
+genes in the same contrast, and it returns essentially nothing:
+{HS["go"]["sets_tested"] - HS["go"]["sets_with_hits"]} of the {HS["go"]["sets_tested"]} gene
+sets have no enriched term at all. The single exception is instructive rather than encouraging.
+The {GO_SIG_CONTRAST} set returns {len(GO_SIG)} terms, every one of them taste-receptor biology
+— the strongest is {GO_SIG[0]["name"]} at p = {sci(GO_SIG[0]["p_value"])} on
+{GO_SIG[0]["intersection_size"]} genes — which is the <em>TAS2R</em> cluster, a textbook
+copy-number-variable gene family. A negative control behaving exactly as a negative control
+should.</p>
+
+<div class="callout">
+<p><strong>What these p-values are and are not.</strong> The spatial statistic asks whether a
+window's score cluster is unusual for its own chromosome at its own exact variant count. It is
+<em>not</em> a paired test that two effect estimates differ. Two estimates computed from the
+same donors on two references are enormously correlated, and a naive paired test of them would
+be badly anti-conservative; the rotation null sidesteps that by asking a different and
+answerable question. The values are also candidate-screened rather than genome-wide adjusted,
+and the window size, the minimum-count gate and the tail definition were chosen for this
+follow-up rather than preregistered. Treat the ranking as a shortlist for investigation.</p>
+</div>
 
 <h2 id="interaction">Genotype×sex interaction, and why scale decides it</h2>
 
@@ -578,8 +820,16 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
 <p>Settled, in the sense of resting on corrected data with a complete audit chain:</p>
 
 <ul>
-  <li>The four arms agree closely on cis-eQTL yield. Reference and aligner choice do not
-      move the headline count much at this cohort size.</li>
+  <li>The four arms agree closely on cis-eQTL <em>yield</em>, but not on the surface beneath
+      it. Reference choice perturbs effect estimates about {mag_ratio:.0f} times more than
+      aligner choice does, and that disagreement is spatially concentrated rather than
+      diffuse.</li>
+  <li>{HSA["replicating"]} of the {HSA["windows"]} top-ranked discordance windows are
+      recovered by both the linear and the graph-surjected workflow, and those sit in
+      ordinary sequence rather than in segmental duplications.</li>
+  <li>Every permutation-selected lead in every arm replays against an independently computed
+      {HS["nominal_rows"] / 1e6:.0f}-million-pair nominal surface, to
+      {sci(HS["lead_bridge"]["max_abs_beta_error"], 0)} in effect size.</li>
   <li>Genotype×sex interaction is undetectable on the inverse-normal scale and detectable,
       barely, on log-CPM — a consequence of what a rank transform discards.</li>
   <li>The XY-versus-XX eGene ratio of about 2.2 tracks sample size, not biology.</li>
@@ -599,6 +849,14 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       settle it.</li>
   <li><strong>The anti-conservative offset.</strong> var(z) above 1 is unexplained and
       systematic.</li>
+  <li><strong>Copy number at the discordance windows.</strong> Haplotype-sampled pangenomic
+      alignment addresses paralog collapse, but no amount of correct read placement makes a
+      multi-copy locus diploid. Whether these are copy-number effects that a SNP dosage
+      merely tags is untested. The joint-called genotypes retain the per-sample depth and
+      allele-balance fields that would settle it.</li>
+  <li><strong>The {N_SNG} single-workflow windows.</strong> By construction these are the
+      ones where the aligner decided the answer, and they are the duplicated, poorly mappable
+      ones. They are reported here as aligner-sensitive, not as reference findings.</li>
   <li><strong>Fine-mapping.</strong> The per-stratum nominal scans are the natural input to
       multi-condition fine-mapping, which is in progress separately.</li>
 </ul>
@@ -615,6 +873,16 @@ reference rather than intersected. Association testing with TensorQTL on two NVI
 from 30 covariates. Between-sex nulls are simulated parametrically with one replicate at a
 pinned seed. Multiple testing is Benjamini-Hochberg throughout, applied within an explicitly
 named selection family.</p>
+
+<p>The all-variant scan is the non-interaction model <code>Y<sub>INT</sub> ~ G + C</code> on all
+225 donors with 51 covariate columns and 172 residual degrees of freedom, run across the four
+arms at k = 35. Cross-arm comparison uses one common frame: each variant reduced to its
+LiftoverIndel-normalized T2T position, reference and alternate allele, matched on that identity
+together with the gene, with slopes oriented to the T2T alternate allele and each unique variant
+contributing once through its nearest-TSS jointly tested anchor. Windows are fixed,
+non-overlapping {HS["window_size_bp"] // 1000}-kb intervals in T2T coordinates. The spatial null
+is a chromosome-wise circular rotation of paired score tuples over the ordered eligible variants,
+at {HS["rotations"]:,} rotations after a count-matched screen.</p>
 
 <p>Every figure and every table on this page is generated directly from the corrected run
 tree by a single collection script, so no number here was transcribed by hand. Figures are

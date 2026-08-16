@@ -114,6 +114,7 @@ and what survived the rebuild.">
     <li><a href="#rebuild">Rebuilding, and proving the rebuild</a></li>
     <li><a href="#pcs">How many expression PCs?</a></li>
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
+    <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#interaction">Genotype×sex interaction, and why scale decides it</a></li>
     <li><a href="#stratified">Sex-stratified maps</a></li>
     <li><a href="#contrast">Contrasting effect sizes between sexes</a></li>
@@ -130,6 +131,8 @@ and what survived the rebuild.">
     dosages corrected at the boundary</span></div>
   <div><span class="n">12,189</span><span class="l">eGenes across the four arms
     at k = 35</span></div>
+  <div><span class="n">442M</span><span class="l">cis pairs in
+    the all-variant nominal scan</span></div>
   <div><span class="n">225</span><span class="l">donors (92 XX, 133 XY)</span></div>
 </div>
 
@@ -289,7 +292,157 @@ headline count much. And the expression scale matters more than the reference do
 log2(CPM+1) yields 13,169 eGenes against 12,189 for the inverse-normal
 transform, a gap larger than any between-arm difference.</p>
 
-<p>That second observation is not a curiosity. It is the hinge of the next section.</p>
+<p>That second observation is the hinge of the genotype×sex analysis further down. The first
+deserves a harder look before then, because agreement in a headline count is a weak form of
+agreement.</p>
+
+<h2 id="hotspots">Where the references disagree</h2>
+
+<p>Two maps can call almost the same number of eGenes while disagreeing about which variants
+carry the signal and how strongly. A per-arm total is precisely the statistic that would
+conceal that, because it is a count of winners and says nothing about the surface they were
+drawn from. Testing it properly needs the whole surface: every cis variant-gene pair in every
+arm, not just the per-gene best.</p>
+
+<p>That scan is <strong>441,661,674</strong> tested pairs across the four arms. It
+also functions as an independent audit of everything above, because the permutation-selected
+leads have to reappear in it unchanged. All 72,774 of them do,
+at a maximum absolute effect-size discrepancy of
+5.9 × 10<sup>−8</sup> — so the maps in the previous section are
+confirmed by a separately computed surface, not merely re-reported.
+4 rows out of the 441,661,674 carried TensorQTL's
+degenerate zero-variance representation and are excluded from every difference below.</p>
+
+<p>Comparing arms requires one common frame. Each variant is reduced to its
+LiftoverIndel-normalized T2T position, reference and alternate allele, matched across arms on
+that identity together with the gene, and its slope oriented to the T2T alternate allele. Every
+matched variant then yields a difference in test statistic between any two arms. Binned into
+fixed 100-kb windows, those differences separate into two regimes
+that barely touch.</p>
+
+
+<figure>
+  <picture>
+    <source srcset="figures/reference-vs-aligner.dark.svg" media="(prefers-color-scheme: dark)">
+    <img src="figures/reference-vs-aligner.light.svg" alt="Horizontal box plot on a log scale of per-window mean absolute delta Z for four contrasts, with the two reference contrasts near 0.21 and the two aligner contrasts near 0.02" loading="lazy">
+  </picture>
+  <figcaption>Per-window mean |Δ Z| across all eligible 100-kb windows. The two reference contrasts sit an order of magnitude to the right of the two aligner contrasts, and the whiskers — 5th to 95th percentile — do not meet.</figcaption>
+</figure>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Axis</th><th>Matched variants</th><th>Occupied windows</th><th>Windows ≥ 100</th><th>Median window mean |Δ Z|</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>reference</td><td>8,045,629</td><td>27,448</td><td>26,499</td><td><strong>0.2127</strong></td></tr><tr><td>T2T − GRCh38 · graph</td><td>reference</td><td>8,101,362</td><td>27,485</td><td>26,540</td><td><strong>0.2134</strong></td></tr><tr><td>graph − linear · GRCh38</td><td>aligner</td><td>8,265,702</td><td>27,579</td><td>26,612</td><td><strong>0.0198</strong></td></tr><tr><td>graph − linear · T2T</td><td>aligner</td><td>8,372,973</td><td>27,910</td><td>26,691</td><td><strong>0.0204</strong></td></tr></tbody></table></div><p class="tnote">Every contrast matches the same gene and the same LiftoverIndel-normalized allele, so these are like-for-like comparisons of the same variant on two processings of the same donors. Windows are fixed, non-overlapping, and in T2T coordinates.</p>
+
+<p>Changing the reference genome moves the effect estimate about
+<strong>10 times</strong> as much as changing the aligner: a median window mean
+|Δ Z| of 0.213 against 0.020. The separation is not a difference of
+averages over overlapping distributions. The 5th percentile of either reference contrast
+(0.119) sits above the 95th percentile of either aligner contrast (0.065), so a
+typically-quiet window under a reference swap is still noisier than an unusually loud window
+under an aligner swap.</p>
+
+<div class="callout">
+<p><strong>What the aligner axis actually measures.</strong> The graph arms are aligned against
+the pangenome and then surjected back into linear coordinates before variant calling, so their
+genotypes are emitted against a linear allele representation. Pangenomic alignment improves
+<em>where reads are placed</em>; after surjection it cannot contribute alleles that the linear
+reference has no way to write down. That is the most economical explanation for why the aligner
+contrasts are an order of magnitude smaller, and it bounds the claim: this comparison measures
+the value of pangenomic read placement, not the value of pangenomic variant representation.
+Those are different propositions and it would be easy to read the first as the second.</p>
+</div>
+
+<p>Within the reference contrasts the discordance is not spread evenly across the genome.
+Ranking windows by mean absolute difference and by the mean within their own upper 5% tail,
+screening the leaders against count-matched windows, and calibrating with
+10,000 chromosome-wise circular rotations, leaves
+<strong>13 distinct windows</strong> in the top ten of either reference contrast.
+Every one carries at least 100 exactly matched variants.
+<strong>7 of the 13</strong> are recovered by both the linear
+and the graph-surjected workflow, which turns out to be the most informative thing about
+them.</p>
+
+<h3>Replication across workflows is a paralog control</h3>
+
+<p>The obvious worry about any reference-difference result is that it is a mapping artifact
+rather than a mapping improvement. Segmental duplications are where GRCh38 collapses paralogous
+copies onto one locus, and a fixed difference between the copies then reads as a heterozygous
+variant in nearly every donor. If T2T resolves that duplication, the genotype changes character
+and so does the eQTL estimate — but so it would if the reads were simply being misplaced in a
+new way. Segdup enrichment alone cannot separate those two stories, because both predict it.</p>
+
+<p>The four-arm design already contains a discriminator. Because the graph arms use haplotype-
+sampled pangenomic alignment, they resolve paralogous copies that a linear aligner collapses. A
+window whose signal depends on which aligner was used is a window where read placement was
+deciding the answer. A window recovered by both is one where it was not.</p>
+
+
+<figure>
+  <picture>
+    <source srcset="figures/hotspot-context.dark.svg" media="(prefers-color-scheme: dark)">
+    <img src="figures/hotspot-context.light.svg" alt="Scatter plot of segmental-duplication fraction against mappability for 13 windows, with windows recovered by both workflows clustered at low segdup and high mappability" loading="lazy">
+  </picture>
+  <figcaption>The 13 top-ranked windows in sequence context. Those recovered by both workflows cluster at low segmental-duplication content and high mappability; those found by only one spread into duplicated, poorly mappable sequence. chr1:15.9 Mb is the exception that replicates despite high duplication content.</figcaption>
+</figure>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Window sequence context, median</th><th>Recovered by both workflows (n = 7)</th><th>One workflow only (n = 6)</th></tr></thead><tbody><tr><td>Segmental duplication</td><td>0.009</td><td>0.179</td></tr><tr><td>100-mer mappability</td><td>0.963</td><td>0.602</td></tr><tr><td>Repeat content</td><td>0.538</td><td>0.984</td></tr><tr><td>Human accelerated region</td><td>0.000</td><td>0.004</td></tr></tbody></table></div><p class="tnote">Base-pair fractions of each 100-kb window, from native T2T annotation tracks. With 7 windows against 6 this is a description of the two groups, not a powered test; a two-sided rank-sum comparison of the segmental-duplication fractions returns p = 0.10.</p>
+
+<p>The split runs the way the artifact hypothesis predicts it should if the artifact is
+confined to the non-replicating group. Windows recovered by both workflows have a median
+segmental-duplication fraction of 0.009 and median
+mappability 0.963; those found by one workflow
+only sit at 0.179 and
+0.602. The aligner axis is behaving as a
+filter on hard sequence, and the 7 windows that survive it are largely ordinary sequence
+where paralog collapse is not an available explanation.</p>
+
+<p>This is a description of 13 windows, not a test, and it should not be read as
+one — a two-sided rank-sum comparison of the duplication fractions returns
+p = 0.10. One window, chr1:15.9 Mb,
+replicates across workflows while sitting at
+0.69 duplication content, so the rule is a tendency
+rather than a partition.</p>
+
+<div class="tablewrap"><table class=""><thead><tr><th>Window (T2T)</th><th>Both workflows</th><th>Variants</th><th>Mean |Δ Z|</th><th>Segdup</th><th>Mappability</th><th>cCRE overlap</th><th>ClinGen recurrent-CNV breakpoint</th><th>Anchor genes</th></tr></thead><tbody><tr><td>chr1:15.9 Mb</td><td>yes</td><td>253</td><td>2.27</td><td>0.693</td><td>0.852</td><td>106 / 299</td><td>—</td><td>CROCCP3, LINC01772, LINC01783, RNU1-1</td></tr><tr><td>chr12:9.4 Mb</td><td>yes</td><td>422</td><td>5.14</td><td>0.077</td><td>0.874</td><td>90 / 536</td><td>—</td><td>DDX12P, LOC374443, LOC408186, LOC728715</td></tr><tr><td>chr19:36.8 Mb</td><td>yes</td><td>216</td><td>3.44</td><td>0.014</td><td>0.998</td><td>75 / 218</td><td>—</td><td>GARRE1, GPI</td></tr><tr><td>chr2:42.3 Mb</td><td>yes</td><td>218</td><td>6.03</td><td>0.009</td><td>0.999</td><td>77 / 218</td><td>—</td><td>COX7A2L</td></tr><tr><td>chr10:51.6 Mb</td><td>yes</td><td>244</td><td>6.30</td><td>0.000</td><td>0.963</td><td>23 / 268</td><td>LCR10q11.2F</td><td>ASAH2B</td></tr><tr><td>chr13:109.8 Mb</td><td>yes</td><td>481</td><td>2.07</td><td>0.000</td><td>0.995</td><td>223 / 483</td><td>—</td><td>ING1, NAXD, RAB20</td></tr><tr><td>chr14:18.1 Mb</td><td>yes</td><td>388</td><td>2.98</td><td>0.000</td><td>0.946</td><td>123 / 424</td><td>—</td><td>DHRS4, DHRS4-AS1, DHRS4L2</td></tr><tr><td>chr15:82.2 Mb</td><td>—</td><td>165</td><td>2.42</td><td>0.846</td><td>0.375</td><td>11 / 165</td><td>LCR 15q25.2C</td><td>GOLGA6L5P, LOC102724135, UBE2Q2P1</td></tr><tr><td>chr15:30.3 Mb</td><td>—</td><td>186</td><td>2.59</td><td>0.302</td><td>0.399</td><td>10 / 186</td><td>BP5</td><td>GOLGA8N, LINC02256, WHAMMP1</td></tr><tr><td>chr10:51.5 Mb</td><td>—</td><td>291</td><td>3.62</td><td>0.201</td><td>0.927</td><td>57 / 291</td><td>LCR10q11.2F</td><td>ASAH2B, SGMS1-AS1</td></tr><tr><td>chr8:12.6 Mb</td><td>—</td><td>177</td><td>2.99</td><td>0.156</td><td>0.545</td><td>15 / 177</td><td>REPP</td><td>FAM66A</td></tr><tr><td>chrX:153.7 Mb</td><td>—</td><td>109</td><td>2.11</td><td>0.031</td><td>0.659</td><td>8 / 109</td><td>—</td><td>F8A3, TMLHE</td></tr><tr><td>chr11:73.6 Mb</td><td>—</td><td>236</td><td>1.30</td><td>0.007</td><td>1.000</td><td>39 / 236</td><td>—</td><td>PLEKHB1, RAB6A</td></tr></tbody></table></div><p class="tnote">The 13 distinct windows ranked in the top ten of either reference contrast, ordered by workflow replication and then by segmental-duplication content. cCRE overlap is evaluated only among variants with a unique normalized GRCh38 position, which is the denominator shown.</p>
+
+<h3>What the windows are made of</h3>
+
+<p>Annotating them against ClinGen gives a split result worth stating in both directions.
+<strong>5 of 13</strong> windows contain
+variants inside a recurrent-CNV breakpoint or low-copy-repeat interval, and in
+3 of them — chr15:30.3 Mb, chr15:82.2 Mb, chr8:12.6 Mb — that is true of
+<em>every</em> mappable variant the window contains, not merely some;
+chr10:51.5 Mb reaches
+96 percent. But
+<strong>0 of 13</strong> fall inside a curated
+region with sufficient evidence for dosage sensitivity. These loci sit in the structural
+scaffolding that makes recurrent CNVs possible, not in the dosage-sensitive intervals whose
+disruption is known to cause disease, and the second fact constrains how much the first is
+allowed to mean.</p>
+
+<p>Of the 3,610 matched variants in these windows with a unique normalized
+GRCh38 position, 857 overlap a candidate cis-regulatory element.
+4 windows overlap a human accelerated regulatory region and
+3 contain matched variants inside one.</p>
+
+<p>Gene Ontology was run as a plausibility check against a background of the eligible anchor
+genes in the same contrast, and it returns essentially nothing:
+7 of the 8 gene
+sets have no enriched term at all. The single exception is instructive rather than encouraging.
+The graph − linear · T2T set returns 10 terms, every one of them taste-receptor biology
+— the strongest is bitter taste receptor activity at p = 1.1 × 10<sup>−8</sup> on
+5 genes — which is the <em>TAS2R</em> cluster, a textbook
+copy-number-variable gene family. A negative control behaving exactly as a negative control
+should.</p>
+
+<div class="callout">
+<p><strong>What these p-values are and are not.</strong> The spatial statistic asks whether a
+window's score cluster is unusual for its own chromosome at its own exact variant count. It is
+<em>not</em> a paired test that two effect estimates differ. Two estimates computed from the
+same donors on two references are enormously correlated, and a naive paired test of them would
+be badly anti-conservative; the rotation null sidesteps that by asking a different and
+answerable question. The values are also candidate-screened rather than genome-wide adjusted,
+and the window size, the minimum-count gate and the tail definition were chosen for this
+follow-up rather than preregistered. Treat the ranking as a shortlist for investigation.</p>
+</div>
 
 <h2 id="interaction">Genotype×sex interaction, and why scale decides it</h2>
 
@@ -469,8 +622,16 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
 <p>Settled, in the sense of resting on corrected data with a complete audit chain:</p>
 
 <ul>
-  <li>The four arms agree closely on cis-eQTL yield. Reference and aligner choice do not
-      move the headline count much at this cohort size.</li>
+  <li>The four arms agree closely on cis-eQTL <em>yield</em>, but not on the surface beneath
+      it. Reference choice perturbs effect estimates about 10 times more than
+      aligner choice does, and that disagreement is spatially concentrated rather than
+      diffuse.</li>
+  <li>7 of the 13 top-ranked discordance windows are
+      recovered by both the linear and the graph-surjected workflow, and those sit in
+      ordinary sequence rather than in segmental duplications.</li>
+  <li>Every permutation-selected lead in every arm replays against an independently computed
+      442-million-pair nominal surface, to
+      6 × 10<sup>−8</sup> in effect size.</li>
   <li>Genotype×sex interaction is undetectable on the inverse-normal scale and detectable,
       barely, on log-CPM — a consequence of what a rank transform discards.</li>
   <li>The XY-versus-XX eGene ratio of about 2.2 tracks sample size, not biology.</li>
@@ -490,6 +651,14 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       settle it.</li>
   <li><strong>The anti-conservative offset.</strong> var(z) above 1 is unexplained and
       systematic.</li>
+  <li><strong>Copy number at the discordance windows.</strong> Haplotype-sampled pangenomic
+      alignment addresses paralog collapse, but no amount of correct read placement makes a
+      multi-copy locus diploid. Whether these are copy-number effects that a SNP dosage
+      merely tags is untested. The joint-called genotypes retain the per-sample depth and
+      allele-balance fields that would settle it.</li>
+  <li><strong>The 6 single-workflow windows.</strong> By construction these are the
+      ones where the aligner decided the answer, and they are the duplicated, poorly mappable
+      ones. They are reported here as aligner-sensitive, not as reference findings.</li>
   <li><strong>Fine-mapping.</strong> The per-stratum nominal scans are the natural input to
       multi-condition fine-mapping, which is in progress separately.</li>
 </ul>
@@ -506,6 +675,16 @@ reference rather than intersected. Association testing with TensorQTL on two NVI
 from 30 covariates. Between-sex nulls are simulated parametrically with one replicate at a
 pinned seed. Multiple testing is Benjamini-Hochberg throughout, applied within an explicitly
 named selection family.</p>
+
+<p>The all-variant scan is the non-interaction model <code>Y<sub>INT</sub> ~ G + C</code> on all
+225 donors with 51 covariate columns and 172 residual degrees of freedom, run across the four
+arms at k = 35. Cross-arm comparison uses one common frame: each variant reduced to its
+LiftoverIndel-normalized T2T position, reference and alternate allele, matched on that identity
+together with the gene, with slopes oriented to the T2T alternate allele and each unique variant
+contributing once through its nearest-TSS jointly tested anchor. Windows are fixed,
+non-overlapping 100-kb intervals in T2T coordinates. The spatial null
+is a chromosome-wise circular rotation of paired score tuples over the ordered eligible variants,
+at 10,000 rotations after a count-matched screen.</p>
 
 <p>Every figure and every table on this page is generated directly from the corrected run
 tree by a single collection script, so no number here was transcribed by hand. Figures are

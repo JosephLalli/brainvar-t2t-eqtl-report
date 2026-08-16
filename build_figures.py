@@ -18,6 +18,7 @@ import textwrap
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -345,8 +346,118 @@ def fig_contrast_pairs(c, mode):
     finish(fig, ax, c, f"contrast-pairs.{mode}.svg")
 
 
+# ---------------------------------------------------------------- figure 9
+CONTRAST_ORDER = ["t2t_minus_grch38_linear", "t2t_minus_grch38_graph",
+                  "graph_minus_linear_grch38", "graph_minus_linear_t2t"]
+CONTRAST_LABEL = {
+    "t2t_minus_grch38_linear": "T2T − GRCh38  ·  linear",
+    "t2t_minus_grch38_graph": "T2T − GRCh38  ·  graph",
+    "graph_minus_linear_grch38": "graph − linear  ·  GRCh38",
+    "graph_minus_linear_t2t": "graph − linear  ·  T2T",
+}
+
+
+def mb(interval: str) -> str:
+    """chr15:82200001-82300000 -> chr15:82.2 Mb"""
+    chrom, span = interval.split(":")
+    return f"{chrom}:{int(span.split('-')[0]) / 1e6:.1f} Mb"
+
+
+def fig_reference_vs_aligner(c, mode):
+    bc = DATA["hotspots"]["by_contrast"]
+    fig, ax = plt.subplots(figsize=(8.2, 4.0))
+    for i, key in enumerate(CONTRAST_ORDER):
+        q = bc[key]["quantiles_abs_delta_z"]
+        colour = c["s1"] if bc[key]["dimension"] == "reference" else c["s2"]
+        bx = ax.bxp(
+            [{"med": q["0.5"], "q1": q["0.25"], "q3": q["0.75"],
+              "whislo": q["0.05"], "whishi": q["0.95"], "fliers": []}],
+            positions=[i], widths=0.52, vert=False, patch_artist=True,
+            showfliers=False, zorder=3)
+        for box in bx["boxes"]:
+            box.set(facecolor=colour, edgecolor=colour, linewidth=0)
+        for part in ("whiskers", "caps"):
+            for a in bx[part]:
+                a.set(color=colour, linewidth=1.4)
+        for med in bx["medians"]:
+            med.set(color=c["surface"], linewidth=1.8)
+        ax.annotate(f'{q["0.5"]:.3f}', xy=(q["0.95"], i), xytext=(9, 0),
+                    textcoords="offset points", va="center", ha="left",
+                    color=c["ink2"], fontsize=9.5)
+    ax.set_xscale("log")
+    ax.set_yticks(range(len(CONTRAST_ORDER)),
+                  [CONTRAST_LABEL[k] for k in CONTRAST_ORDER])
+    ax.invert_yaxis()
+    ax.set_xlim(0.006, 1.35)
+    ax.set_xlabel("per-window mean |Δ Z| across all eligible 100-kb windows (log scale)",
+                  color=c["ink2"], fontsize=9.5)
+    ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
+    ax.yaxis.grid(False)
+    ax.set_axisbelow(True)
+    frame(ax, c, ygrid=False)
+    title(ax, c, "Changing the reference moves effect estimates ten times more than "
+                 "changing the aligner",
+          "Box spans the interquartile range, whiskers the 5th to 95th percentile. The two "
+          "reference contrasts sit almost entirely to the right of the two aligner "
+          "contrasts; labelled values are medians.")
+    finish(fig, ax, c, f"reference-vs-aligner.{mode}.svg")
+
+
+# ---------------------------------------------------------------- figure 10
+def fig_hotspot_context(c, mode):
+    hs = DATA["hotspots"]
+    wins = hs["windows"]
+    split = hs["context_split"]
+    fig, ax = plt.subplots(figsize=(8.2, 4.8))
+    groups = [
+        (2, "in both workflows", c["s1"], "o", split["replicating"]),
+        (1, "one workflow only", c["s2"], "s", split["single_workflow"]),
+    ]
+    for repl, name, colour, marker, med in groups:
+        pts = [w for w in wins if w["replication"] == repl]
+        ax.scatter([w["segdup_bp_fraction"] for w in pts],
+                   [w["mappability_bp_fraction"] for w in pts],
+                   s=68, marker=marker, color=colour, zorder=4,
+                   edgecolor=c["surface"], linewidth=1.2,
+                   label=f'{name}  (n = {len(pts)})')
+        ax.axvline(med["segdup_bp_fraction"], color=colour, linewidth=1.2,
+                   linestyle=(0, (4, 3)), zorder=2, alpha=0.85)
+        ax.annotate(f'median {med["segdup_bp_fraction"]:.3f}',
+                    xy=(med["segdup_bp_fraction"], 1.055), xytext=(0, 0),
+                    textcoords="offset points", color=colour, fontsize=9,
+                    va="bottom", ha="center")
+    # Two windows carry the argument and are named on the plot: the extreme
+    # single-workflow case, and the one replicating window that is segdup-rich.
+    for w in wins:
+        if w["segdup_bp_fraction"] > 0.6:
+            ax.annotate(mb(w["interval"]),
+                        xy=(w["segdup_bp_fraction"], w["mappability_bp_fraction"]),
+                        xytext=(0, -16), textcoords="offset points",
+                        color=c["ink2"], fontsize=9, ha="center")
+    # Square root, not log: the low-segdup cluster needs spreading and zero has to
+    # stay representable.
+    ax.set_xscale("function", functions=(lambda v: np.sqrt(np.clip(v, 0, None)),
+                                         lambda v: np.square(v)))
+    ax.set_xticks([0, 0.01, 0.05, 0.1, 0.2, 0.35, 0.55, 0.85])
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.set_xlim(-0.004, 0.95)
+    ax.set_ylim(0.25, 1.06)
+    ax.set_xlabel("segmental-duplication fraction of the window",
+                  color=c["ink2"], fontsize=9.5)
+    ax.set_ylabel("100-mer mappability fraction", color=c["ink2"], fontsize=9.5)
+    ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
+    frame(ax, c)
+    title(ax, c, "Windows that need a particular aligner are the hard-sequence ones",
+          "Each point is one of the 13 top-ranked reference-discordance windows. Those "
+          "recovered by both the linear and the graph workflow sit at low segmental-"
+          "duplication content and high mappability.")
+    legend(ax, c, loc="lower left")
+    finish(fig, ax, c, f"hotspot-context.{mode}.svg")
+
+
 FIGURES = [fig_missing_burden, fig_pc_sweep, fig_four_arm, fig_stratified,
-           fig_interaction, fig_calibration, fig_direction, fig_contrast_pairs]
+           fig_interaction, fig_calibration, fig_direction, fig_contrast_pairs,
+           fig_reference_vs_aligner, fig_hotspot_context]
 
 if __name__ == "__main__":
     for mode, palette in (("light", LIGHT), ("dark", DARK)):

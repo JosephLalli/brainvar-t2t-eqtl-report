@@ -2,12 +2,13 @@
 
 A long-form write-up of the four-arm GRCh38 versus T2T-CHM13 cis-eQTL analysis of the
 BrainVar developmental cohort: the missing-genotype convention mismatch that invalidated
-the first pass, the rebuild and its audit, and the findings that survived.
+the first pass, the rebuild and its audit, the findings that survived, and where on the
+genome the two references actually disagree.
 
 ## Layout
 
 - `index.html` — the report. Self-contained apart from the figures; theme-aware.
-- `figures/` — eight figures, each rendered in a light and a dark variant.
+- `figures/` — ten figures, each rendered in a light and a dark variant.
 - `build_figures.py` — renders every figure from the collected dataset.
 - `build_site.py` — assembles `index.html`, injecting all numbers and tables from the
   same dataset so the prose cannot drift from the run tree.
