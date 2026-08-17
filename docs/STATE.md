@@ -54,8 +54,9 @@ aligner axis.
   neighbouring windows and genes.
 - **No ground truth exists in this dataset.** No result can be phrased as accuracy. See
   `ANALYSIS_PLAN.md`.
-- **SuSiE reuse is unverified.** Candidate outputs are e36-era, not the current v4/k35 arms.
-  Confirm arm correspondence before building *Count credible sets per gene* on them.
+- **SuSiE cannot be reused, and this is settled.** The e36-era outputs are both a
+  different parameterisation and pre-rebuild, so credible sets for the current arms
+  need a fresh run. No credible-set claim belongs on the page until then.
 - **The ancestry shift is described, not linked to outcomes.** Alternate load measures reference bias; whether it degrades eQTL estimates for AFR donors specifically is untested and is the natural follow-up.
 - **`collect_report_data.py` lives outside version control**, in the analysis workspace. It is
   the single point of failure for reproducing the page. Moving it into this repo is a small,

@@ -318,12 +318,23 @@ is nameable in the positive arm's own variant space. A lead with no counterpart 
 excluded — and those are precisely the cases where the two arms differ most, so the independent
 share is understated rather than inflated.
 
-**Count credible sets per gene.** `[NOT STARTED]` Number of SuSiE credible sets per gene, and
-credible-set membership overlap, per arm. Preferred over conditional/stepwise analysis on cost
-grounds. **First task: locate and validate existing SuSiE output.** Candidates seen outside
-this workspace: `nf_stage/brainvar_eqtl_e36_susieash_complete_e42388e_20260728T054734Z` and
-siblings — but these are e36-era, *not* the current v4/k35 arms, so confirm arm correspondence
-before use and re-run if they do not match. *Cost: low if reusable, high if not.*
+**Count credible sets per gene.** `[BLOCKED — existing SuSiE output is not reusable]`
+
+Checked and rejected. The candidate outputs
+(`nf_stage/brainvar_eqtl_e36_susieash_complete_e42388e_20260728T054734Z` and siblings) do
+carry credible sets for GRCh38 and T2T, about 49,000 credible-set variants each, with
+cross-reference matching already performed. They cannot be used here for two independent
+reasons:
+
+- they are **e36**, a different expression-PC parameterisation from the k = 35 the current
+  arms use; and
+- they were validated on **2026-07-28**, before the genotype rebuild the four current arms
+  rest on, so their credible sets were fit on genotypes from which a large share of variants
+  was missing.
+
+Either alone would disqualify them. Producing credible sets for the current arms means a fresh
+SuSiE run, which is a substantial compute job and has not been scheduled. Until then, no
+statement about credible sets belongs on the page.
 
 **Test whether GWAS colocalization changes.** `[NOT STARTED]` The ideal endpoint: does a coloc call appear or
 disappear between arms? GWAS rsIDs in T2T coordinates are available at
