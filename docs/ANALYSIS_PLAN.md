@@ -420,23 +420,37 @@ is nameable in the positive arm's own variant space. A lead with no counterpart 
 excluded — and those are precisely the cases where the two arms differ most, so the independent
 share is understated rather than inflated.
 
-**Count credible sets per gene.** `[BLOCKED — existing SuSiE output is not reusable]`
+**Count credible sets per gene.** `[IN PROGRESS — SuSiE running on the current arms]`
+Run root `runs/susie_finemapping_v4_k35_20260817`; script
+`scratch/run_susie_finemapping_v4_k35_20260817.py`.
 
-Checked and rejected. The candidate outputs
-(`nf_stage/brainvar_eqtl_e36_susieash_complete_e42388e_20260728T054734Z` and siblings) do
-carry credible sets for GRCh38 and T2T, about 49,000 credible-set variants each, with
-cross-reference matching already performed. They cannot be used here for two independent
-reasons:
+*Correction to what this plan previously said.* It recorded that the existing e36 fine-mapping
+was disqualified partly because its credible sets were fit on genotypes missing a large share
+of variants. **That was wrong.** Its adapter did its own NaN-aware mean imputation
+(`impute_and_filter_genotypes`) rather than relying on TensorQTL's `-9` sentinel, so the
+genotypes it fine-mapped were handled correctly and the missing-dosage defect never reached it.
 
-- they are **e36**, a different expression-PC parameterisation from the k = 35 the current
-  arms use; and
-- they were validated on **2026-07-28**, before the genotype rebuild the four current arms
-  rest on, so their credible sets were fit on genotypes from which a large share of variants
-  was missing.
+The run is still not reusable, for two reasons that do hold:
 
-Either alone would disqualify them. Producing credible sets for the current arms means a fresh
-SuSiE run, which is a substantial compute job and has not been scheduled. Until then, no
-statement about credible sets belongs on the page.
+- it was fit at **36** expression principal components, not the 35 these arms use; and
+- its **eGene selection** came from permutation results produced before the genotype rebuild,
+  so the genes chosen for fine-mapping were chosen from a contaminated map even though the
+  fine-mapping itself was sound.
+
+*What the new run enforces.* `tensorqtl.susie.map` calls the same `impute_mean` that
+recognises a `-9` sentinel and not IEEE NaN, so SuSiE by that path **is** exposed to the defect
+the association runner was built to avoid. The new runner therefore imports the association
+runner's loader rather than reimplementing it, so the boundary conversion cannot drift between
+the two analyses. Each arm-by-chromosome shard writes its own manifest and is skipped when
+complete, so an interrupted run resumes.
+
+Parameters match the previous run: L = 10, coverage 0.95, minimum absolute correlation 0.5,
+100 iterations, tolerance 1e-3, in-sample MAF 0.05, one-megabase window. Only genes the same
+arm called as eGenes are fine-mapped — roughly three thousand per arm.
+
+*Smoke test:* 15 genes on chr22 in 7 seconds, yielding PIP and credible-set identifiers per
+variant, with 2 of 13 genes carrying more than one credible set. Full job estimated at about
+two hours across two GPUs.
 
 **Test whether GWAS colocalization changes.** `[NOT STARTED]` The ideal endpoint: does a coloc call appear or
 disappear between arms? GWAS rsIDs in T2T coordinates are available at

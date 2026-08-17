@@ -5,21 +5,14 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Nothing on the plan is both unblocked and unstarted.** Every workstream is complete except
-three, each blocked for a stated reason:
+**SuSiE fine-mapping is running** on both GPUs — GRCh38 arms on device 0, T2T arms on device 1,
+logs at `logs/susie_gpu{0,1}_20260817.log`, run root
+`runs/susie_finemapping_v4_k35_20260817`. Shards resume individually, so an interruption is
+safe: relaunch the same command and completed shards are skipped.
 
-- *Count credible sets per gene* — the existing SuSiE output is a different parameterisation
-  and predates the genotype rebuild, so it needs a fresh run.
-- *Test whether GWAS colocalization changes* — depends on credible sets, and needs a trait
-  source, since the local GWAS VCF carries dbSNP and ClinVar annotation but no trait field.
-- *Hardy-Weinberg and allele-balance stages of the background-noise workstream* — each needs a pass over the callsets.
-- *Add the variant-caller axis at the association level* — the allele-frequency stage is done
-  and gives the yardstick; scoring `hc_minus_dv_*` through the window and gene pipelines needs
-  a gated genotype derivation and association run.
-
-The natural next piece of work is therefore a decision rather than an analysis: whether to
-schedule a SuSiE run on the current arms, which would unblock both credible sets and
-colocalization.
+When it finishes: count credible sets per gene per arm, compare credible-set membership across
+arms conditional on a shared gene set, and fold the result into the page. That also unblocks
+GWAS colocalization, which needs a trait source in addition.
 
 ### After that
 
@@ -68,9 +61,10 @@ colocalization.
   neighbouring windows and genes.
 - **No ground truth exists in this dataset.** No result can be phrased as accuracy. See
   `ANALYSIS_PLAN.md`.
-- **SuSiE cannot be reused, and this is settled.** The e36-era outputs are both a
-  different parameterisation and pre-rebuild, so credible sets for the current arms
-  need a fresh run. No credible-set claim belongs on the page until then.
+- **A claim in the plan was wrong and has been corrected.** The e36 fine-mapping was
+  described as fit on genotypes missing many variants; in fact its adapter imputed
+  NaN directly and was never exposed to that defect. It remains unusable because it
+  used 36 expression PCs and selected its eGenes from a pre-rebuild map.
 - **The ancestry shift is described, not linked to outcomes.** Alternate load measures reference bias; whether it degrades eQTL estimates for AFR donors specifically is untested and is the natural follow-up.
 - **`collect_report_data.py` lives outside version control**, in the analysis workspace. It is
   the single point of failure for reproducing the page. Moving it into this repo is a small,
