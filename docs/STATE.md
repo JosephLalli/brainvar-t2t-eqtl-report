@@ -49,16 +49,19 @@ only**, then **add the variant-caller axis**.
 
 ## Page status
 
-Branch `hotspot-section` in this repo, **not merged and not pushed**. Live site
-(`josephlalli.github.io/brainvar-t2t-eqtl-report`) is at commit `4890ce5` and reflects none of
-the following:
+**Published.** `main` and `hotspot-section` are both at `abe4ad2`; the live site
+(`josephlalli.github.io/brainvar-t2t-eqtl-report`) serves it and has been verified to carry the
+new title and none of the removed material. Publishing is a fast-forward of `main` to the
+working branch and a push — **do not merge or force-push, and ask before publishing.**
 
-- NaN-bug narrative removed; page retitled *Mapping Brain eQTLs on Two Reference Genomes*
-- "Replication" framing replaced with the factorial reference-by-aligner reading
-- Genome-wide FDR section, directional section, and their figures added
+Already live: the missing-genotype narrative removed and the page retitled *Mapping Brain
+eQTLs on Two Reference Genomes*; the "replication" framing replaced with the factorial
+reference-by-aligner reading; the genome-wide FDR and directional sections with their figures.
 
-Publishing is a fast-forward of `main` to this branch and a push. Do not merge or push without
-asking.
+**Not yet on the page**, though the analysis is complete and in the run tree: the concordance
+baseline, the gene-class enrichments, the MHC result, the chrX result, and the aligner-versus-
+reference portability asymmetry. These are held back until the framing rewrite below, and the
+chrX result is held until *Separate the chrX effect by sex* resolves.
 
 **Framing the page must adopt** (agreed with J.L., 2026-08-16):
 
