@@ -132,11 +132,33 @@ central to the paper's argument.
 ### Anatomy of the difference
 Characterises *how* estimates move, not which movement is correct.
 
-**Decompose Δz into Δβ and Δse.** `[NOT STARTED]` A shifted β means the arms estimate a
-different underlying effect; a shifted se means the same effect measured with different
-precision. Hypothesis to test: aligner discordance is se-dominated (precision) and reference
-discordance is β-dominated (different variant/LD). Nearly free — `beta_a/se_a/beta_b/se_b`
-are already in the paired tables. *Cost: low.*
+**Decompose Δz into Δβ and Δse.** `[COMPLETE]` Run root
+`runs/effect_precision_and_af_20260816`. The split is exact, not approximate:
+`z_a - z_b = (b_a - b_b)/se_a + b_b(1/se_a - 1/se_b)`, verified per contrast to a maximum
+residual of 3x10^-6.
+
+*The stated hypothesis was wrong.* The plan predicted aligner discordance would be
+precision-dominated and reference discordance effect-dominated. **Both axes are
+effect-dominated, and to nearly the same degree** — 93.9% of variants for the reference swap,
+94.9% for the aligner swap. Precision barely moves: the median se ratio between arms is 1.0017
+(reference) and 1.0000 (aligner).
+
+| Contrast | var(Δz) | var(effect term) | var(precision term) | effect-dominated |
+|---|---|---|---|---|
+| T2T − GRCh38 · linear | 0.2328 | 0.2499 | 0.0132 | 93.9% |
+| T2T − GRCh38 · graph | 0.2568 | 0.2700 | 0.0143 | 93.9% |
+| graph − linear · GRCh38 | 0.0102 | 0.0107 | 0.0012 | 94.9% |
+| graph − linear · T2T | 0.0111 | 0.0112 | 0.0013 | 94.9% |
+
+**Neither method change buys precision. Both change what is being measured.** That bears
+directly on the signal-to-noise framing: where these methods differ they are not reducing noise
+around a fixed quantity, they are estimating a different one — consistent with the arms
+effectively seeing different genotypes or different local linkage at the sites that move.
+
+*One nuance that does track sequence class:* in duplicated sequence the aligner's precision term
+roughly doubles relative to its effect term (0.111 to 0.218), while the reference's barely
+shifts (0.117 to 0.138). Pangenomic alignment measurably changes genotype certainty in
+duplicated sequence specifically, even though the estimate still dominates.
 
 **Describe background-noise properties per arm.** `[NOT STARTED]` Describe, per arm and per region
 class: median standard error at matched MAF, residual variance, HWE/excess-het rate, and mean
@@ -146,15 +168,29 @@ observation, not a verdict, and always alongside the region class it occurs in. 
 interest is *where* the arms' noise properties diverge, and whether that is the same place the
 effect estimates diverge. *Cost: medium.*
 
-**Map representation-dependence by allele-frequency concordance.** `[NOT STARTED]`
-For an identical normalised allele in the same 225 donors, AF must be identical. A difference
-therefore proves the measurement at that site **depends on representation** — with no external
-truth set required, because the agreement is logically compelled rather than empirically hoped
-for. It is **unsigned**: it does not say which arm is wrong, and truth may be the higher or the
-lower frequency. The deliverable is a per-region catalogue of representation-dependent
-measurement, which is the caution map described at the top of this document, and a comparison
-of its extent across all three axes. *Cost: low. High value — it is the cleanest instrument
-the project has.*
+**Map representation-dependence by allele-frequency concordance.** `[COMPLETE]` Run root
+`runs/effect_precision_and_af_20260816`. Frequencies are placed in the common frame first, with
+the reported frequency complemented wherever the identity mapping flipped the allele — which is
+also the gate that had to pass before any sign-flip statistic could mean anything.
+
+The instrument is clean: **median |ΔAF| is exactly zero in all four contrasts.**
+
+| Contrast | Exactly equal | Within 0.001 | Within 0.01 | Beyond 0.01 |
+|---|---|---|---|---|
+| T2T − GRCh38 · linear | 70.2% | 85.7% | 96.2% | **3.8%** |
+| T2T − GRCh38 · graph | 70.3% | 85.4% | 96.1% | **3.9%** |
+| graph − linear · GRCh38 | 83.1% | 87.8% | 98.4% | **1.6%** |
+| graph − linear · T2T | 81.6% | 87.0% | 98.3% | **1.7%** |
+
+The 1.6–3.9% beyond 0.01 is the caution map, and it is unsigned: those sites' measurement
+depends on representation, but truth may lie on either side. Maximum |ΔAF| reaches 0.84–0.90, so
+a minority of sites disagree almost completely.
+
+*Convergent evidence, from an instrument sharing no statistics with the eQTL analysis:* the
+chromosomes with the most AF discordance are chr19, chr22, chr17, chrX, chr6, chr21, chr15 and
+chr9 — the same set the window and gene analyses independently identified. chr21 is worst in
+graph − linear · T2T (3.9%), matching the acrocentric result from that contrast. Genotype
+frequencies and association statistics point at the same regions without sharing a denominator.
 
 **Verify allele identity, then count sign flips.** `[NOT STARTED — gated]` Only interpretable after confirming REF/ALT are
 identical. The paired tables already match on exact LiftoverIndel-normalised T2T

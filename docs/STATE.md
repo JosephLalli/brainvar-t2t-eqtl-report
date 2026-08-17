@@ -5,15 +5,13 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Decompose Δz into Δβ and Δse**, together with **map representation-dependence by
-allele-frequency concordance**. Both are cheap, both read from the paired tables that already
-exist in `runs/noninteraction_int_hotspots_100kb_20260812/paired_anchor_variants`, and together
-they establish what *kind* of difference each axis produces: a shifted β means the arms estimate
-a different underlying effect, a shifted se means the same effect measured with different
-precision, and an AF discrepancy proves the site is representation-dependent without needing any
-truth set.
+**Characterise genes testable in one reference only.** The gene universes are 18,273 (GRCh38)
+against 18,114 (T2T), frozen natively and never intersected, so every matched-gene comparison
+run so far is structurally blind to the non-overlap. Identify those genes, their biotype and
+their sequence context, and check whether the T2T-only ones sit in newly resolved regions.
 
-Then **characterise genes testable in one reference only**, then **add the variant-caller axis**.
+Then **add the variant-caller axis** (expensive, but it recalibrates every effect size
+reported), then **measure lead-variant switching by LD** and **count credible sets per gene**.
 
 ## Complete
 
@@ -26,6 +24,8 @@ Then **characterise genes testable in one reference only**, then **add the varia
 | Gene classes | Aligner effect is only ~50% portable across references (gene Jaccard 0.495); reference effect is 92% portable across aligners (0.919). | `gene_discordance_disease_20260816` |
 | Calibration | **Negative, and worth keeping:** genome-wide family-wise rotation test returns 0 of 106,342 window tests. A circular shift relocates the signal rather than removing it, so the null max ≈ observed max (ratio 1.02). A shift null tests *position*, not *magnitude*, and cannot certify these windows. | `genomewide_window_discordance_fwer_20260816` |
 | chrX by sex | The chrX aligner effect is **XX-specific**: graph−linear·T2T moves 34.6% of chrX genes in XX against 6.8% autosomal (OR 7.27, p = 3.8×10⁻⁸⁵), while the other seven contrast-by-stratum cells show nothing (OR 0.16–0.91). Not power — XY has 133 donors to XX's 92. chrX dosage encoding is identical across all four arms, so differential ploidy handling is excluded. | `chrx_discordance_by_sex_20260816` |
+| Effect vs precision | Both axes are **effect-dominated**, not precision-dominated — 93.9% (reference) and 94.9% (aligner) of variants; median se ratio 1.0017 and 1.0000. Neither method change buys precision; both change what is measured. In duplicated sequence the aligner's precision term doubles relative to its effect term while the reference's barely moves. Refutes the hypothesis stated in the plan. | `effect_precision_and_af_20260816` |
+| Allele-frequency concordance | Median \|ΔAF\| exactly 0 in all four contrasts. Exactly equal at 70% (reference) and 82–83% (aligner); within 0.01 at 96.2% and 98.4%. The **1.6–3.9% beyond 0.01 is the caution map**, unsigned. Worst chromosomes (chr19, chr22, chr17, chrX, chr6, chr21) match the eQTL-derived hotspots, from an instrument sharing no statistics with them. | `effect_precision_and_af_20260816` |
 
 ## Known risks
 
