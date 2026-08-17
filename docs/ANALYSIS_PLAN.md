@@ -206,13 +206,42 @@ roughly doubles relative to its effect term (0.111 to 0.218), while the referenc
 shifts (0.117 to 0.138). Pangenomic alignment measurably changes genotype certainty in
 duplicated sequence specifically, even though the estimate still dominates.
 
-**Describe background-noise properties per arm.** `[NOT STARTED]` Describe, per arm and per region
-class: median standard error at matched MAF, residual variance, HWE/excess-het rate, and mean
-het allele balance. Report where the arms differ and by how much. A consistent reduction in
-background noise is worth stating and is a mild point in an arm's favour — write it as an
-observation, not a verdict, and always alongside the region class it occurs in. The question of
-interest is *where* the arms' noise properties diverge, and whether that is the same place the
-effect estimates diverge. *Cost: medium.*
+**Describe background-noise properties per arm.** `[COMPLETE — standard-error stage]`
+Run root `runs/background_noise_by_arm_20260816`.
+
+Standard error at matched allele frequency is the natural measure: an arm whose standard
+errors are smaller at the same frequency is extracting more from the same donors. Reported per
+region class, because the question worth asking is not whether an arm is quieter overall but
+whether it is quieter where the sequence is hard.
+
+**No arm is measurably less noisy, anywhere.** Median standard error at MAF 0.2–0.35 is 0.04579,
+0.04581, 0.04578 and 0.04581 across the four arms — identical to the fourth decimal. Ratios
+between arms:
+
+| Comparison | In duplicated sequence | In ordinary sequence |
+|---|---|---|
+| graph ÷ linear, GRCh38 | 0.999 | 1.000 |
+| graph ÷ linear, T2T | 1.000 | 1.001 |
+| T2T ÷ GRCh38, linear | **1.008** | 1.003 |
+
+The largest effect in the table is T2T carrying standard errors 0.8% *larger* than GRCh38 in
+duplicated sequence. Standard errors are higher in duplicated sequence than in ordinary
+sequence in every arm (about 0.0536 against 0.0522), and no method change repairs that.
+
+This confirms the decomposition and extends it: that result showed the *difference* between
+paired estimates is carried by the effect and not the standard error; this shows the *level* of
+noise is the same in every arm, including in exactly the hard sequence where a gain would be
+most expected.
+
+**Consequence for the project's framing.** Signal-to-noise, in the ordinary sense of a smaller
+standard error around the same quantity, is not what any of these method changes buy. What they
+change is which variants exist to be measured at all. Read alongside the access result, the two
+say the same thing from opposite ends.
+
+*Bound.* A smaller standard error is not by itself better; it is an improvement only if the
+estimate it surrounds has not also moved, which this cannot establish. Nothing here ranks the
+arms. Hardy-Weinberg and allele-balance stages of this workstream remain unrun and would need
+passes over the callsets.
 
 **Map representation-dependence by allele-frequency concordance.** `[COMPLETE]` Run root
 `runs/effect_precision_and_af_20260816`. Frequencies are placed in the common frame first, with

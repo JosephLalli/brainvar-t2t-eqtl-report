@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-16. Update this file at the end of every work session, in the same
+**Updated:** 2026-08-17. Update this file at the end of every work session, in the same
 session as the work. A run root without a line here is invisible to the next contributor.
 
 ## Next action
@@ -12,6 +12,7 @@ three, each blocked for a stated reason:
   and predates the genotype rebuild, so it needs a fresh run.
 - *Test whether GWAS colocalization changes* — depends on credible sets, and needs a trait
   source, since the local GWAS VCF carries dbSNP and ClinVar annotation but no trait field.
+- *Hardy-Weinberg and allele-balance stages of the background-noise workstream* — each needs a pass over the callsets.
 - *Add the variant-caller axis at the association level* — the allele-frequency stage is done
   and gives the yardstick; scoring `hc_minus_dv_*` through the window and gene pipelines needs
   a gated genotype derivation and association run.
@@ -53,6 +54,7 @@ colocalization.
 | Arm-exclusive variants | The two axes add different kinds of variant. Variants only the graph can call reach \|z\| ≥ 4 **2.1× more often** than shared variants and sit in 2.4× more duplicated sequence; variants only T2T can call are slightly *less* likely to carry signal (0.92×). Invisible to any yield count. chr1 and chr19. | `arm_exclusive_variants_20260816` |
 | Three-axis yardstick | **A reference swap is a smaller perturbation than an aligner swap, and both are under half a caller swap.** Sites differing by more than 0.01 in allele frequency: reference 2.34–2.61%, aligner 2.56–2.91%, caller 5.84–6.50% (2.26× the aligner). Measured on identical donors, contigs and stage. Cross-reference contrasts are restricted to variants both references can represent, which is the point rather than a limitation. | `three_axis_af_yardstick_20260816` |
 | Newly accessible signal | **About one gene in nine (11.2%) has its best association at a variant GRCh38 cannot represent**; 4.8% for an aligner swap. With the yardstick and the gene universes this establishes that the reference's distinctive effect is on **access, not measurement** — where it can see the same variant it sees it the same way. | `newly_accessible_signal_20260816` |
+| Background noise per arm | **No arm is measurably less noisy.** Median standard error at matched allele frequency is identical to the fourth decimal across all four arms; the largest ratio is T2T carrying 0.8% *larger* errors than GRCh38 in duplicated sequence. Confirms and extends the decomposition: these methods do not buy precision, anywhere. | `background_noise_by_arm_20260816` |
 
 ## Known risks
 

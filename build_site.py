@@ -305,6 +305,8 @@ t_lead = table(
          "the measurement that would settle that is linkage disequilibrium between them, "
          "which has not been computed.")
 
+BGN = DATA["background_noise"]["by_arm"]
+BGR = DATA["background_noise"]["ratios"]
 LDS = DATA["lead_switch_ld"]["by_contrast"]
 ld_same_ref = min(LDS[k]["share_r2_above_0.8"] for k in REF_KEYS)
 ld_same_wf = min(LDS[k]["share_r2_above_0.8"] for k in WF_KEYS)
@@ -916,6 +918,25 @@ precision does shift is duplicated sequence, where the aligner's precision term 
 relative to its effect term while the reference's barely moves — pangenomic alignment is
 measurably changing genotype certainty there, and only there.</p>
 </div>
+
+<p>That is a statement about the difference between paired estimates. The level of noise each
+arm carries is a separate question, and it has the same answer. At matched allele frequency the
+median standard error is
+{BGN["linear_grch38_dv"]["median_se_maf_0.2_0.35"]:.5f},
+{BGN["graph_grch38_dv"]["median_se_maf_0.2_0.35"]:.5f},
+{BGN["linear_t2t_dv"]["median_se_maf_0.2_0.35"]:.5f} and
+{BGN["graph_t2t_dv"]["median_se_maf_0.2_0.35"]:.5f} across the four arms — identical to the
+fourth decimal. Splitting by sequence class does not separate them either: in duplicated
+sequence the graph-to-linear ratio is
+{BGR["aligner_t2t"]["median_se_duplicated_common"]:.3f} and the T2T-to-GRCh38 ratio
+{BGR["reference_linear"]["median_se_duplicated_common"]:.3f}, the largest entry in the table
+being T2T carrying standard errors slightly <em>larger</em> than GRCh38 exactly where a gain
+would be most expected.</p>
+
+<p><strong>No arm is measurably less noisy, anywhere.</strong> Standard errors are higher in
+duplicated sequence than in ordinary sequence in every arm, and no method change repairs that.
+Whatever these choices are doing, they are not improving the precision with which a shared
+variant is measured.</p>
 
 <p>There is a second way to ask the same question that needs no association model at all. The
 same 225 donors and the same normalised allele must give the same allele frequency, so any
@@ -1575,9 +1596,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {gd_or_lo:.1f} to {gd_or_hi:.1f} times enriched for recurrent genomic-disorder regions,
       {har_or_lo:.1f} to {har_or_hi:.1f} times for human accelerated regions, and consistently
       for segmental duplication — twelve of twelve tests positive.</li>
-  <li>Method changes move the <em>estimate</em>, not the <em>precision</em>. The standard error
-      is essentially unchanged in every contrast, so these are not noise reductions; they are
-      changes in what is being measured.</li>
+  <li>Method changes move the <em>estimate</em>, not the <em>precision</em>. The standard
+      error is essentially unchanged in every contrast, and at matched allele frequency no arm
+      is measurably less noisy than any other — including in duplicated sequence, where a gain
+      would be most expected. These are not noise reductions; they are changes in what is
+      being measured.</li>
   <li>{uni_excl:,} genes are testable on one reference only, and {uni_excl_egenes} of them are
       eGenes — associations available on one reference and not the other, invisible to any
       matched-gene comparison.</li>
