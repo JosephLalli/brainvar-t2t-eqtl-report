@@ -256,7 +256,25 @@ in ten within half a z-unit of where they started, and 91% to
 
 <p>Nothing in this analysis threatens prior genetics. If a reference swap had overturned a
 large fraction of a cis-eQTL map, that would have been a reason to distrust the swap rather
-than the map. The interesting question is what is in the remainder.</p>
+than the map.</p>
+
+<p>That reassurance needs one qualification immediately, because a genome-wide average is not
+what anyone acts on. Decisions are made at the head of the ranking — the genes that get
+followed up, fine-mapped, or put in a figure — and the head is less stable than the bulk.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Top-100 kept</th><th>Candidates that change</th><th>Not testable in the other arm</th><th>Rank correlation</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>78%</td><td><strong>22</strong></td><td>5</td><td>0.837</td></tr><tr><td>T2T − GRCh38 · graph</td><td>81%</td><td><strong>19</strong></td><td>5</td><td>0.830</td></tr><tr><td>graph − linear · GRCh38</td><td>95%</td><td><strong>5</strong></td><td>0</td><td>0.963</td></tr><tr><td>graph − linear · T2T</td><td>95%</td><td><strong>5</strong></td><td>0</td><td>0.964</td></tr></tbody></table></div><p class="tnote">Genes ranked within each arm by the gene-level permutation p-value the map already produces. Rank correlation is computed over genes both arms rank, which separates the same genes in a different order from different genes. Ranking is noisy near ties, so a gene crossing the boundary of a top-100 list need not reflect a meaningful change in evidence.</p>
+
+<p>Switching reference changes <strong>19 to 22 of the top hundred
+genes</strong>; switching aligner changes 5. The rank correlation among genes both
+arms rank falls to about
+0.83 for a reference swap against
+0.96 for an aligner swap. A
+handful of the changes are genes the other arm cannot test at all, which is a different kind
+of difference and is taken up further down.</p>
+
+<p>Both numbers are true and they belong together. The map as a whole is stable; the shortlist
+drawn off the top of it is materially less so. The interesting question is what distinguishes
+the part that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -897,6 +915,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       97.4% of association calls identical and a reference swap
       73.5%, with 91% to 95% of genes
       untouched. Nothing here overturns prior genetics.</li>
+  <li><strong>The shortlist is less stable than the map.</strong> A reference swap changes
+      19 to 22 of the top hundred genes and an aligner swap
+      5, so the practical consequence of the method choice is larger than the
+      genome-wide correlation implies.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       2.9 to 9.1 times enriched for recurrent genomic-disorder regions,
       1.7 to 1.9 times for human accelerated regions, and consistently

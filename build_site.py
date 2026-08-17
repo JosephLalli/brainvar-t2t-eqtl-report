@@ -263,6 +263,26 @@ t_universe = table(
          "Duplication content is measured in T2T coordinates and so is available only for the "
          "T2T-exclusive and shared sets.")
 
+TOPK = DATA["topk"]["by_contrast"]
+topk_ref_lo = min(TOPK[k]["depths"]["100"]["changed"] for k in REF_KEYS)
+topk_ref_hi = max(TOPK[k]["depths"]["100"]["changed"] for k in REF_KEYS)
+topk_wf_hi = max(TOPK[k]["depths"]["100"]["changed"] for k in WF_KEYS)
+
+t_topk = table(
+    ["Contrast", "Top-100 kept", "Candidates that change", "Not testable in the other arm",
+     "Rank correlation"],
+    [[CONTRAST_LABEL[k], f'{TOPK[k]["depths"]["100"]["share"]:.0%}',
+      f'<strong>{TOPK[k]["depths"]["100"]["changed"]}</strong>',
+      f'{TOPK[k]["depths"]["100"]["absent_from_other_universe"]}',
+      f'{TOPK[k]["spearman_rank_correlation"]:.3f}']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="Genes ranked within each arm by the gene-level permutation p-value the map already "
+         "produces. Rank correlation is computed over genes both arms rank, which separates "
+         "the same genes in a different order from different genes. Ranking is noisy near "
+         "ties, so a gene crossing the boundary of a top-100 list need not reflect a "
+         "meaningful change in evidence.")
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -667,7 +687,25 @@ in ten within half a z-unit of where they started, and {1 - gene_moved_hi:.0%} t
 
 <p>Nothing in this analysis threatens prior genetics. If a reference swap had overturned a
 large fraction of a cis-eQTL map, that would have been a reason to distrust the swap rather
-than the map. The interesting question is what is in the remainder.</p>
+than the map.</p>
+
+<p>That reassurance needs one qualification immediately, because a genome-wide average is not
+what anyone acts on. Decisions are made at the head of the ranking — the genes that get
+followed up, fine-mapped, or put in a figure — and the head is less stable than the bulk.</p>
+
+{t_topk}
+
+<p>Switching reference changes <strong>{topk_ref_lo} to {topk_ref_hi} of the top hundred
+genes</strong>; switching aligner changes {topk_wf_hi}. The rank correlation among genes both
+arms rank falls to about
+{min(TOPK[k]["spearman_rank_correlation"] for k in REF_KEYS):.2f} for a reference swap against
+{min(TOPK[k]["spearman_rank_correlation"] for k in WF_KEYS):.2f} for an aligner swap. A
+handful of the changes are genes the other arm cannot test at all, which is a different kind
+of difference and is taken up further down.</p>
+
+<p>Both numbers are true and they belong together. The map as a whole is stable; the shortlist
+drawn off the top of it is materially less so. The interesting question is what distinguishes
+the part that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -1231,6 +1269,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {conc_calls_aligner:.1%} of association calls identical and a reference swap
       {conc_calls_ref:.1%}, with {1 - gene_moved_hi:.0%} to {1 - gene_moved_lo:.0%} of genes
       untouched. Nothing here overturns prior genetics.</li>
+  <li><strong>The shortlist is less stable than the map.</strong> A reference swap changes
+      {topk_ref_lo} to {topk_ref_hi} of the top hundred genes and an aligner swap
+      {topk_wf_hi}, so the practical consequence of the method choice is larger than the
+      genome-wide correlation implies.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       {gd_or_lo:.1f} to {gd_or_hi:.1f} times enriched for recurrent genomic-disorder regions,
       {har_or_lo:.1f} to {har_or_hi:.1f} times for human accelerated regions, and consistently

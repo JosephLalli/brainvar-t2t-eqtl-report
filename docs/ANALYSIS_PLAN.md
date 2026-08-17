@@ -288,12 +288,27 @@ disappear between arms? GWAS rsIDs in T2T coordinates are available at
 names, needs renaming; carries dbSNP/ClinVar INFO but **no trait field** — a trait source must
 be added). *Cost: high. Schedule last; it depends on lead-variant switching and credible sets.*
 
-**Measure top-k rank concordance.** `[NOT STARTED]` Genome-wide r describes the average result,
-but nobody acts on the average — people act on the head of the list: which genes get followed
-up, fine-mapped, or put in a figure. Report the overlap of the top 100 / 500 genes between
-arms. This converts a statistical statement into an operational one: *how many of your
-follow-up candidates would change if you switched method.* That is the number a reader
-actually needs. *Cost: low.*
+**Measure top-k rank concordance.** `[COMPLETE]` Run root
+`runs/topk_rank_concordance_20260816`.
+
+The operational translation of the concordance result, and the two do not say the same thing.
+Genome-wide the arms correlate at 0.94 under a reference swap and 91% of genes are unmoved —
+but at the head of the ranking, where decisions are actually made:
+
+| Contrast | Top-100 overlap | Candidates changed | Rank correlation |
+|---|---|---|---|
+| T2T − GRCh38 · linear | 78% | **22 of 100** | 0.837 |
+| T2T − GRCh38 · graph | 81% | **19 of 100** | 0.830 |
+| graph − linear · GRCh38 | 95% | 5 of 100 | 0.963 |
+| graph − linear · T2T | 95% | 5 of 100 | 0.964 |
+
+**Switch reference and about a fifth of your top hundred follow-up candidates change.** Switch
+aligner and one in twenty does. Five of the reference-swap changes are genes not testable in
+the other arm at all, which links this directly to the gene-universe result.
+
+This is the number a reader planning follow-up actually needs, and it is markedly less
+reassuring than the genome-wide correlation. Both belong on the page: the bulk of the map is
+stable, and the part of it anyone acts on is less so.
 
 ### Who is affected
 **Separate the chrX effect by sex.** `[COMPLETE]` Run root

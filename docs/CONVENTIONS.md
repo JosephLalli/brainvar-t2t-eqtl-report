@@ -34,6 +34,12 @@ Every run root must contain `MANIFEST.json` with at least:
 Include SHA-256 for every external track or table read. If a run consumed another run's
 output, name that run root in `source_run`. A run without a manifest did not happen.
 
+**Delete the manifest before re-running a run root.** The collector treats a manifest with
+`"status": "complete"` as current, so a manifest left over from an earlier or narrower run
+will be read as if it described the new one — silently putting stale numbers on the page.
+This has already happened once: a pilot restricted to one chromosome was picked up as though
+it were the genome-wide run. Clear the run root, or write to a new one.
+
 ## Statistics
 
 - **Correct the background.** Enrichment is always tested against the entities actually
