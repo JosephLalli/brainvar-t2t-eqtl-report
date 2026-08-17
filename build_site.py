@@ -399,6 +399,23 @@ t_yardstick = table(
          f'identity in both references, which same-reference rows are not — see the note '
          f'below the figure.')
 
+NACC = DATA["newly_accessible"]["by_contrast"]
+
+t_access = table(
+    ["Contrast", "Genes whose lead the other arm cannot represent", "Share",
+     "Among genes reaching |z| ≥ 4"],
+    [[CONTRAST_LABEL[k],
+      f'{NACC[k]["genes_whose_lead_is_exclusive"]:,} of {NACC[k]["genes"]:,}',
+      f'<strong>{NACC[k]["share_leads_exclusive"]:.1%}</strong>',
+      f'{NACC[k]["share_called_leads_exclusive"]:.1%}']
+     for k in NACC],
+    cls="numeric",
+    note="Genome-wide. A variant is exclusive to an arm when it carries a unique normalised "
+         "identity there and has no counterpart among the other arm's tested variants; "
+         "variants with no unique identity at all are excluded from both sides, so this is a "
+         "lower bound. A gene's lead being exclusive does not mean the other arm finds nothing "
+         "for that gene — only that it cannot find that variant.")
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -1289,6 +1306,30 @@ exactly the duplicated sequence a linear aligner has least to work with. The ref
 variants of ordinary informativeness. A yield count sees both as "more variants tested" and
 cannot tell them apart.</p>
 
+<p>The sharpest form of the question is per gene. Not "are exclusive variants informative on
+average", but: <em>is a gene's single best association at a variant the other arm cannot
+represent at all?</em></p>
+
+{t_access}
+
+<p><strong>About one gene in nine has its top association on a variant GRCh38 cannot
+represent</strong> — {NACC["t2t_minus_grch38_linear"]["genes_whose_lead_is_exclusive"]:,} of
+{NACC["t2t_minus_grch38_linear"]["genes"]:,}. For an aligner swap it is
+{NACC["graph_minus_linear_t2t"]["share_leads_exclusive"]:.1%}.</p>
+
+<div class="callout">
+<p><strong>This is the mechanical core of the whole comparison.</strong> Three results point
+the same way from different directions. Among variants both references can represent, they
+agree about them more closely than two aligners do. But
+{uni_excl:,} genes are testable on one reference only, {uni_excl_egenes} of those are eGenes,
+and for one shared gene in nine the strongest association sits on a variant the other reference
+has no way to write down.</p>
+<p><strong>The reference's distinctive effect is on access, not on measurement.</strong> Where
+it can see the same thing, it sees it the same way. What changes is what it can see. No
+comparison of yields, effect sizes, or correlations can reach that, because every one of them
+conditions on the variants both references share.</p>
+</div>
+
 <h2 id="chrx">Chromosome X, and why sex decides it</h2>
 
 <p>One result does not fit the pattern of the others, and it took a stratified analysis to
@@ -1540,6 +1581,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
   <li>{uni_excl:,} genes are testable on one reference only, and {uni_excl_egenes} of them are
       eGenes — associations available on one reference and not the other, invisible to any
       matched-gene comparison.</li>
+  <li><strong>The reference's effect is on access, not measurement.</strong> Among variants
+      both references can represent they agree more closely than two aligners do, yet
+      {NACC["t2t_minus_grch38_linear"]["share_leads_exclusive"]:.0%} of genes have their best
+      association on a variant the other reference cannot represent at all.</li>
   <li><strong>The two axes add different kinds of variant.</strong> Variants only the
       pangenome graph can call reach the association threshold
       {EXCL["graph_minus_linear_t2t"]["call_rate_ratio"]:.1f}× as often as shared variants;

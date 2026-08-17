@@ -280,12 +280,39 @@ sequence accessibility. The residual (106 and 242 genes present in the other ann
 testable) is the part attributable to the reference itself. Both figures should be quoted
 together; neither alone is honest.
 
-**Measure signal in newly accessible sequence.** `[NOT STARTED]` Define "fills in" concretely as: for each
-gene, the mean association signal (mean |z|, and count of variants at |z| > 4) among cis
-variants that fall in sequence present in T2T but absent or unmappable in GRCh38, versus the
-rest of that gene's cis window. The question is whether newly sequenced sequence carries
-*signal* or only *variants*. Requires a defensible "newly accessible" interval set — derive
-from GRCh38-unmappable / non-syntenic regions rather than asserting one. *Cost: medium.*
+**Measure signal in newly accessible sequence.** `[COMPLETE]` Run root
+`runs/newly_accessible_signal_20260816`. Genome-wide, all 23 contigs.
+
+"Newly accessible" is defined operationally rather than asserted: a variant is accessible to
+one arm only when it carries a unique normalised identity there and has no counterpart among
+the other arm's tested variants. The sharp question is then per gene — is its single best
+association at a variant the other arm cannot represent at all?
+
+| Contrast | Genes whose lead is exclusive | Share | Among genes reaching \|z\| ≥ 4 |
+|---|---|---|---|
+| T2T − GRCh38 · linear | 2,036 of 18,114 | **11.2%** | 8.9% |
+| T2T − GRCh38 · graph | 2,079 of 18,114 | **11.5%** | 9.4% |
+| graph − linear · T2T | 864 of 18,114 | 4.8% | 5.0% |
+
+**About one gene in nine has its top association at a variant GRCh38 cannot represent.**
+
+This closes the loop the yardstick opened. Taken together the three results say the same thing
+from different directions:
+
+- among variants both references can represent, they agree more closely than two aligners do
+  (2.34% of frequencies shifted, against 2.56%);
+- but 1,175 genes are testable on one reference only, and 278 of those are eGenes;
+- and for 11% of *shared* genes, the strongest association sits on a variant the other
+  reference cannot represent.
+
+**The reference's distinctive effect is on access, not on measurement.** Where it can see the
+same thing it sees it the same way; what changes is what it can see. That is the mechanical
+core of the argument, and no yield comparison can reach it.
+
+*Bounds.* Variants with no unique normalised identity are excluded from both sides, so the
+exclusive set is a lower bound on what one arm can represent and the other cannot. A gene's
+lead being exclusive does not mean the other arm finds nothing for that gene — only that it
+cannot find that variant.
 
 **Test whether arm-exclusive variants carry signal.** `[COMPLETE — chr1 and chr19]`
 Run root `runs/arm_exclusive_variants_20260816`.

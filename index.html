@@ -784,6 +784,30 @@ exactly the duplicated sequence a linear aligner has least to work with. The ref
 variants of ordinary informativeness. A yield count sees both as "more variants tested" and
 cannot tell them apart.</p>
 
+<p>The sharpest form of the question is per gene. Not "are exclusive variants informative on
+average", but: <em>is a gene's single best association at a variant the other arm cannot
+represent at all?</em></p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Genes whose lead the other arm cannot represent</th><th>Share</th><th>Among genes reaching |z| ≥ 4</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>2,036 of 18,114</td><td><strong>11.2%</strong></td><td>8.9%</td></tr><tr><td>T2T − GRCh38 · graph</td><td>2,079 of 18,114</td><td><strong>11.5%</strong></td><td>9.4%</td></tr><tr><td>graph − linear · T2T</td><td>864 of 18,114</td><td><strong>4.8%</strong></td><td>5.0%</td></tr></tbody></table></div><p class="tnote">Genome-wide. A variant is exclusive to an arm when it carries a unique normalised identity there and has no counterpart among the other arm's tested variants; variants with no unique identity at all are excluded from both sides, so this is a lower bound. A gene's lead being exclusive does not mean the other arm finds nothing for that gene — only that it cannot find that variant.</p>
+
+<p><strong>About one gene in nine has its top association on a variant GRCh38 cannot
+represent</strong> — 2,036 of
+18,114. For an aligner swap it is
+4.8%.</p>
+
+<div class="callout">
+<p><strong>This is the mechanical core of the whole comparison.</strong> Three results point
+the same way from different directions. Among variants both references can represent, they
+agree about them more closely than two aligners do. But
+1,175 genes are testable on one reference only, 278 of those are eGenes,
+and for one shared gene in nine the strongest association sits on a variant the other reference
+has no way to write down.</p>
+<p><strong>The reference's distinctive effect is on access, not on measurement.</strong> Where
+it can see the same thing, it sees it the same way. What changes is what it can see. No
+comparison of yields, effect sizes, or correlations can reach that, because every one of them
+conditions on the variants both references share.</p>
+</div>
+
 <h2 id="chrx">Chromosome X, and why sex decides it</h2>
 
 <p>One result does not fit the pattern of the others, and it took a stratified analysis to
@@ -1077,6 +1101,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
   <li>1,175 genes are testable on one reference only, and 278 of them are
       eGenes — associations available on one reference and not the other, invisible to any
       matched-gene comparison.</li>
+  <li><strong>The reference's effect is on access, not measurement.</strong> Among variants
+      both references can represent they agree more closely than two aligners do, yet
+      11% of genes have their best
+      association on a variant the other reference cannot represent at all.</li>
   <li><strong>The two axes add different kinds of variant.</strong> Variants only the
       pangenome graph can call reach the association threshold
       2.1× as often as shared variants;

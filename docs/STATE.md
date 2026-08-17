@@ -5,12 +5,20 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Measure signal in newly accessible sequence.** The last unblocked item on the plan. Define
-"newly accessible" from GRCh38-unmappable or non-syntenic intervals rather than asserting a
-set, then compare mean |z| and the count of variants reaching the association threshold inside
-those intervals against the rest of each gene's cis window. This closes the loop on the
-reference axis: the yardstick showed a reference swap barely perturbs shared variants, so what
-it changes must be in the sequence only one reference has.
+**Nothing on the plan is both unblocked and unstarted.** Every workstream is complete except
+three, each blocked for a stated reason:
+
+- *Count credible sets per gene* — the existing SuSiE output is a different parameterisation
+  and predates the genotype rebuild, so it needs a fresh run.
+- *Test whether GWAS colocalization changes* — depends on credible sets, and needs a trait
+  source, since the local GWAS VCF carries dbSNP and ClinVar annotation but no trait field.
+- *Add the variant-caller axis at the association level* — the allele-frequency stage is done
+  and gives the yardstick; scoring `hc_minus_dv_*` through the window and gene pipelines needs
+  a gated genotype derivation and association run.
+
+The natural next piece of work is therefore a decision rather than an analysis: whether to
+schedule a SuSiE run on the current arms, which would unblock both credible sets and
+colocalization.
 
 ### After that
 
@@ -44,6 +52,7 @@ it changes must be in the sequence only one reference has.
 | Ancestry dependence | **The reference swap is not ancestry-neutral.** Moving to T2T changes median alternate-allele load by −0.047 in EUR donors and **+0.017 in AFR** donors (Kruskal p = 1.3×10⁻³⁸), identical under both aligners — European donors come to look more like the reference and African donors less. The aligner axis shows the same test at ~1/50 the magnitude. | `ancestry_dependence_20260816` |
 | Arm-exclusive variants | The two axes add different kinds of variant. Variants only the graph can call reach \|z\| ≥ 4 **2.1× more often** than shared variants and sit in 2.4× more duplicated sequence; variants only T2T can call are slightly *less* likely to carry signal (0.92×). Invisible to any yield count. chr1 and chr19. | `arm_exclusive_variants_20260816` |
 | Three-axis yardstick | **A reference swap is a smaller perturbation than an aligner swap, and both are under half a caller swap.** Sites differing by more than 0.01 in allele frequency: reference 2.34–2.61%, aligner 2.56–2.91%, caller 5.84–6.50% (2.26× the aligner). Measured on identical donors, contigs and stage. Cross-reference contrasts are restricted to variants both references can represent, which is the point rather than a limitation. | `three_axis_af_yardstick_20260816` |
+| Newly accessible signal | **About one gene in nine (11.2%) has its best association at a variant GRCh38 cannot represent**; 4.8% for an aligner swap. With the yardstick and the gene universes this establishes that the reference's distinctive effect is on **access, not measurement** — where it can see the same variant it sees it the same way. | `newly_accessible_signal_20260816` |
 
 ## Known risks
 
