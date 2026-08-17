@@ -1469,6 +1469,12 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
   <li>{uni_excl:,} genes are testable on one reference only, and {uni_excl_egenes} of them are
       eGenes — associations available on one reference and not the other, invisible to any
       matched-gene comparison.</li>
+  <li><strong>The two axes add different kinds of variant.</strong> Variants only the
+      pangenome graph can call reach the association threshold
+      {EXCL["graph_minus_linear_t2t"]["call_rate_ratio"]:.1f}× as often as shared variants;
+      variants only T2T can call are slightly less likely to
+      ({EXCL["t2t_minus_grch38_linear"]["call_rate_ratio"]:.2f}×). A yield count cannot tell
+      those apart.</li>
   <li>The chromosome X effect is specific to XX donors under pangenomic alignment on T2T
       (odds {chrx_hit["odds_ratio"]:.2f}); the other seven cells of the design show nothing.</li>
   <li><strong>A reference swap is not ancestry-neutral.</strong> Moving to T2T reduces
