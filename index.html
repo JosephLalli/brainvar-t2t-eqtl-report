@@ -118,6 +118,7 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     <li><a href="#yardstick">How big is that, really?</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#classes">What the moved regions are made of</a></li>
+    <li><a href="#coloc">What reaches a paper</a></li>
     <li><a href="#universe">The genes that were never askable</a></li>
     <li><a href="#chrx">Chromosome X, and why sex decides it</a></li>
     <li><a href="#ancestry">Ancestry, and who a reference represents</a></li>
@@ -782,6 +783,51 @@ allograft rejection, Fc-receptor activation — which is what one would expect i
 carried by the MHC and the Fc-receptor loci rather than by immune pathways at large. It is
 reported here as a consistent tendency, not as enrichment.</p>
 
+<h2 id="coloc">What reaches a paper</h2>
+
+<p>The claim that actually leaves a study is rarely an effect size. It is that a
+trait-associated variant appears to act through a particular gene — the statement that sends
+someone to the bench. Testing whether the method changes <em>that</em> means putting the
+credible sets against genome-wide significant GWAS associations and asking which of those
+claims survive a swap.</p>
+
+<p>Trait and variant identifier come from the GWAS Catalog; the T2T coordinate for each
+identifier comes from a T2T-native GWAS annotation already in the reference tree. Joining the
+two on the identifier means neither source is lifted over — each is used in the coordinate
+system it was built in.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Shared</th><th>Only in the first arm</th><th>Only in the second</th><th>Union that changes</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>3,300</td><td>1,307</td><td>2,696</td><td><strong>54.8%</strong></td></tr><tr><td>T2T − GRCh38 · graph</td><td>3,126</td><td>1,072</td><td>2,476</td><td><strong>53.2%</strong></td></tr><tr><td>graph − linear · GRCh38</td><td>5,193</td><td>409</td><td>803</td><td><strong>18.9%</strong></td></tr><tr><td>graph − linear · T2T</td><td>3,915</td><td>283</td><td>692</td><td><strong>19.9%</strong></td></tr></tbody></table></div><p class="tnote">A colocalisation is a gene, GWAS variant and trait where a genome-wide significant variant is a member of that gene's credible set. Trait and rsID come from the GWAS Catalog; the T2T coordinate for that rsID comes from a T2T-native GWAS VCF, so the two sources are joined on rsID and no liftover is performed.</p>
+
+<p><strong>More than half of these claims change under a reference swap</strong>
+(55% of the union), and about a fifth under an aligner swap (20%). That is
+far larger than the credible-set agreement on its own would suggest, and the reason is
+structural: a colocalisation is a conjunction. Two arms can agree closely about a gene's
+credible set while disagreeing about whether one particular variant is inside it, and the
+conjunction flips on exactly that.</p>
+
+<div class="callout">
+<p><strong>The direction of this difference is confounded and is not reported.</strong> The
+GRCh38 arms show more colocalisations than the T2T arms —
+5,996 against
+4,607 — <em>despite the T2T arms carrying more
+credible-set variants</em> (65,300 against
+63,248). The GWAS Catalog is itself ascertained
+from studies, arrays and imputation panels built on earlier references, so its variants align
+better with what GRCh38 can call. That asymmetry is a property of the catalog, not evidence
+that T2T loses signal, and only the <em>magnitude</em> of change should be quoted.</p>
+</div>
+
+<p>Splitting by trait area gives the sharpest form of the argument this page has been
+building.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Trait area</th><th>Colocalisations shared</th><th>Changed</th><th>Share changed</th></tr></thead><tbody><tr><td>Psychiatric</td><td>137</td><td>237</td><td><strong>63%</strong></td></tr><tr><td>Neurodevelopmental</td><td>69</td><td>112</td><td><strong>62%</strong></td></tr><tr><td>Immune</td><td>203</td><td>266</td><td><strong>57%</strong></td></tr><tr><td>Gastrointestinal</td><td>14</td><td>17</td><td><strong>55%</strong></td></tr><tr><td>Neurodegenerative</td><td>36</td><td>41</td><td><strong>53%</strong></td></tr><tr><td>Cancer</td><td>74</td><td>83</td><td><strong>53%</strong></td></tr></tbody></table></div><p class="tnote">Reference swap within the linear workflow. Trait areas are coarse keyword matches against the reported and mapped trait, and a trait can fall into more than one, so this is a tendency rather than a test.</p>
+
+<p>The areas whose loci are most structurally dynamic — psychiatric and neurodevelopmental —
+are the ones whose colocalisations change most, and cancer and neurodegenerative traits change
+least. The spread is modest and the groupings are coarse keyword matches, so this is a
+consistent tendency rather than a test. But it is the prediction the whole argument makes,
+observed at the point where a result would actually be published.</p>
+
 <h2 id="universe">The genes that were never askable</h2>
 
 <p>Every comparison so far conditions on genes present in both references, which makes all of
@@ -1139,6 +1185,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       42% of shared eGenes, but 56% of those pairs are in
       high linkage disequilibrium. Only about 5% of shared eGenes end up with a
       genuinely different causal candidate.</li>
+  <li><strong>Over half of GWAS colocalisations change under a reference swap</strong>
+      (55% of the union; 20% for an aligner swap), because a
+      colocalisation is a conjunction and flips on a single variant's set membership.
+      Psychiatric and neurodevelopmental traits change most, cancer and neurodegenerative
+      least.</li>
   <li><strong>Fine-mapping survives at the level it reports.</strong> Credible sets overlap
       for 96% to 98% of shared genes, but the top variant inside them
       agrees only 61% of the time under a reference swap. A credible set is robust

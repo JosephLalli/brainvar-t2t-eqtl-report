@@ -5,10 +5,18 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Test whether GWAS colocalization changes.** Credible sets now exist for the current arms, so
-the remaining dependency is a trait source: the local GWAS VCF carries dbSNP and ClinVar
-annotation but no trait field, so trait-to-variant mapping has to come from elsewhere before
-colocalisation can be scored. That is a data-acquisition decision rather than an analysis.
+**Every workstream on the plan is now complete or explicitly deferred.** The remaining items
+are extensions rather than gaps:
+
+- the variant-caller axis exists at the allele-frequency stage; carrying it to the association
+  stage needs a gated genotype derivation and association run;
+- the background-noise workstream's Hardy-Weinberg and allele-balance stages need passes over
+  the callsets;
+- colocalisation is credible-set membership; a Bayesian version needs per-trait genome-wide
+  summary statistics, which would also remove the catalog ascertainment asymmetry noted below.
+
+The natural next piece of work is the page: it now carries eleven analyses and would benefit
+from a structural read rather than another result.
 
 ### After that
 
@@ -46,6 +54,7 @@ colocalisation can be scored. That is a data-acquisition decision rather than an
 | Background noise per arm | **No arm is measurably less noisy.** Median standard error at matched allele frequency is identical to the fourth decimal across all four arms; the largest ratio is T2T carrying 0.8% *larger* errors than GRCh38 in duplicated sequence. Confirms and extends the decomposition: these methods do not buy precision, anywhere. | `background_noise_by_arm_20260816` |
 | SuSiE fine-mapping | 12,189 gene fine-mappings across four arms in 40 GPU-minutes; 2,540–2,602 genes with credible sets per arm, 1.11–1.12 sets per gene, median set size 7. | `susie_finemapping_v4_k35_20260817` |
 | Credible-set comparison | **Fine-mapping survives at the level it reports.** Sets overlap for 96–98% of shared genes (median Jaccard 0.82 reference, 0.97 aligner), but the top variant within them differs **39%** of the time under a reference swap and 22% under an aligner swap. A credible set is robust to method choice; a named causal variant is not. | `credible_set_comparison_20260817` |
+| GWAS colocalisation | **Over half of colocalisations change under a reference swap** (54.8% of the union; 19% for an aligner swap) — far more than credible-set overlap alone suggests, because colocalisation is a conjunction. Psychiatric and neurodevelopmental traits change most, cancer and neurodegenerative least. **Direction is confounded** by GRCh38-era catalog ascertainment and must not be quoted. | `gwas_coloc_20260817` |
 
 ## Known risks
 

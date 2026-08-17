@@ -442,6 +442,42 @@ t_credible = table(
          f'reference-unique variants is compared on the remainder and disagreement is '
          f'understated.')
 
+COL = DATA["coloc"]["by_contrast"]
+COLA = DATA["coloc"]["per_arm"]
+col_ref = max(COL[k]["share_of_union_changed"] for k in REF_KEYS)
+col_wf = max(COL[k]["share_of_union_changed"] for k in WF_KEYS)
+
+t_coloc = table(
+    ["Contrast", "Shared", "Only in the first arm", "Only in the second",
+     "Union that changes"],
+    [[CONTRAST_LABEL[k], f'{COL[k]["shared"]:,}', f'{COL[k]["only_positive"]:,}',
+      f'{COL[k]["only_negative"]:,}',
+      f'<strong>{COL[k]["share_of_union_changed"]:.1%}</strong>']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="A colocalisation is a gene, GWAS variant and trait where a genome-wide significant "
+         "variant is a member of that gene's credible set. Trait and rsID come from the GWAS "
+         "Catalog; the T2T coordinate for that rsID comes from a T2T-native GWAS VCF, so the "
+         "two sources are joined on rsID and no liftover is performed.")
+
+_grp = COL["t2t_minus_grch38_linear"]["trait_groups"]
+_rows = []
+for _g in sorted({k for d in _grp.values() for k in d}):
+    _sh = _grp["shared"].get(_g, 0)
+    _ch = _grp["only_positive"].get(_g, 0) + _grp["only_negative"].get(_g, 0)
+    if _sh + _ch >= 20:
+        _rows.append((_g, _sh, _ch, _ch / (_sh + _ch)))
+_rows.sort(key=lambda r: -r[3])
+
+t_coloc_traits = table(
+    ["Trait area", "Colocalisations shared", "Changed", "Share changed"],
+    [[g.replace("gastrointestinal", "gastrointestinal").capitalize(), f"{sh:,}", f"{ch:,}",
+      f"<strong>{frac:.0%}</strong>"] for g, sh, ch, frac in _rows],
+    cls="numeric",
+    note="Reference swap within the linear workflow. Trait areas are coarse keyword matches "
+         "against the reported and mapped trait, and a trait can fall into more than one, so "
+         "this is a tendency rather than a test.")
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -729,6 +765,7 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     <li><a href="#yardstick">How big is that, really?</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#classes">What the moved regions are made of</a></li>
+    <li><a href="#coloc">What reaches a paper</a></li>
     <li><a href="#universe">The genes that were never askable</a></li>
     <li><a href="#chrx">Chromosome X, and why sex decides it</a></li>
     <li><a href="#ancestry">Ancestry, and who a reference represents</a></li>
@@ -1330,6 +1367,51 @@ allograft rejection, Fc-receptor activation — which is what one would expect i
 carried by the MHC and the Fc-receptor loci rather than by immune pathways at large. It is
 reported here as a consistent tendency, not as enrichment.</p>
 
+<h2 id="coloc">What reaches a paper</h2>
+
+<p>The claim that actually leaves a study is rarely an effect size. It is that a
+trait-associated variant appears to act through a particular gene — the statement that sends
+someone to the bench. Testing whether the method changes <em>that</em> means putting the
+credible sets against genome-wide significant GWAS associations and asking which of those
+claims survive a swap.</p>
+
+<p>Trait and variant identifier come from the GWAS Catalog; the T2T coordinate for each
+identifier comes from a T2T-native GWAS annotation already in the reference tree. Joining the
+two on the identifier means neither source is lifted over — each is used in the coordinate
+system it was built in.</p>
+
+{t_coloc}
+
+<p><strong>More than half of these claims change under a reference swap</strong>
+({col_ref:.0%} of the union), and about a fifth under an aligner swap ({col_wf:.0%}). That is
+far larger than the credible-set agreement on its own would suggest, and the reason is
+structural: a colocalisation is a conjunction. Two arms can agree closely about a gene's
+credible set while disagreeing about whether one particular variant is inside it, and the
+conjunction flips on exactly that.</p>
+
+<div class="callout">
+<p><strong>The direction of this difference is confounded and is not reported.</strong> The
+GRCh38 arms show more colocalisations than the T2T arms —
+{COLA["linear_grch38_dv"]["coloc_pairs"]:,} against
+{COLA["linear_t2t_dv"]["coloc_pairs"]:,} — <em>despite the T2T arms carrying more
+credible-set variants</em> ({COLA["linear_t2t_dv"]["credible_set_variants"]:,} against
+{COLA["linear_grch38_dv"]["credible_set_variants"]:,}). The GWAS Catalog is itself ascertained
+from studies, arrays and imputation panels built on earlier references, so its variants align
+better with what GRCh38 can call. That asymmetry is a property of the catalog, not evidence
+that T2T loses signal, and only the <em>magnitude</em> of change should be quoted.</p>
+</div>
+
+<p>Splitting by trait area gives the sharpest form of the argument this page has been
+building.</p>
+
+{t_coloc_traits}
+
+<p>The areas whose loci are most structurally dynamic — psychiatric and neurodevelopmental —
+are the ones whose colocalisations change most, and cancer and neurodegenerative traits change
+least. The spread is modest and the groupings are coarse keyword matches, so this is a
+consistent tendency rather than a test. But it is the prediction the whole argument makes,
+observed at the point where a result would actually be published.</p>
+
 <h2 id="universe">The genes that were never askable</h2>
 
 <p>Every comparison so far conditions on genes present in both references, which makes all of
@@ -1645,6 +1727,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {1 - lead_ref_same_lo:.0%} of shared eGenes, but {ld_same_ref:.0%} of those pairs are in
       high linkage disequilibrium. Only about {net_ref:.0%} of shared eGenes end up with a
       genuinely different causal candidate.</li>
+  <li><strong>Over half of GWAS colocalisations change under a reference swap</strong>
+      ({col_ref:.0%} of the union; {col_wf:.0%} for an aligner swap), because a
+      colocalisation is a conjunction and flips on a single variant's set membership.
+      Psychiatric and neurodevelopmental traits change most, cancer and neurodegenerative
+      least.</li>
   <li><strong>Fine-mapping survives at the level it reports.</strong> Credible sets overlap
       for {cs_ovl_ref:.0%} to {cs_ovl_wf:.0%} of shared genes, but the top variant inside them
       agrees only {cs_top_ref:.0%} of the time under a reference swap. A credible set is robust

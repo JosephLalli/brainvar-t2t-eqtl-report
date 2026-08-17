@@ -484,11 +484,59 @@ comparable on the shared gene set used here. Overlap is computed on variants pla
 common frame, which is 99.2–100% of them, so a set containing reference-unique variants is
 compared on the remainder and disagreement is understated.
 
-**Test whether GWAS colocalization changes.** `[NOT STARTED]` The ideal endpoint: does a coloc call appear or
-disappear between arms? GWAS rsIDs in T2T coordinates are available at
-`genome_refs/T2T-CHM13_v2_ncbi110/chm13v2.0_GWASv1.0rsids_*.vcf.gz` (note: GenBank contig
-names, needs renaming; carries dbSNP/ClinVar INFO but **no trait field** — a trait source must
-be added). *Cost: high. Schedule last; it depends on lead-variant switching and credible sets.*
+**Test whether GWAS colocalization changes.** `[COMPLETE — credible-set membership]`
+Run root `runs/gwas_coloc_20260817`.
+
+*The trait source that was blocking this is solved.* The GWAS Catalog's ontology-annotated
+associations release supplies trait and rsID; the T2T-native GWAS VCF already in the reference
+tree supplies the T2T coordinate for that rsID. Joining on rsID means **no liftover is
+performed** — each source is used in the coordinate system it was built in.
+
+A colocalisation here is a (gene, GWAS variant, trait) triple where a genome-wide significant
+variant is a member of that gene's SuSiE credible set. That is credible-set membership rather
+than Bayesian colocalisation, which would need per-trait genome-wide summary statistics; it
+supports "this GWAS variant is among the gene's plausible causal variants", not a posterior
+probability of a shared signal.
+
+| Contrast | Shared | Only in first arm | Only in second | **Union that changes** |
+|---|---|---|---|---|
+| T2T − GRCh38 · linear | 3,300 | 1,307 | 2,696 | **54.8%** |
+| T2T − GRCh38 · graph | 3,126 | 1,072 | 2,476 | **53.2%** |
+| graph − linear · GRCh38 | 5,193 | 409 | 803 | 18.9% |
+| graph − linear · T2T | 3,915 | 283 | 692 | 19.9% |
+
+**Over half of colocalisations change under a reference swap**, and a fifth under an aligner
+swap. This is much larger than the credible-set overlap alone suggested, and the reason is that
+colocalisation is a conjunction: the sets can agree closely while the specific membership of a
+GWAS variant flips.
+
+**The direction is confounded and must not be reported.** GRCh38 arms show more colocalisations
+than T2T arms (5,996 against 4,607 pairs) *despite T2T arms carrying more credible-set variants*
+(65,300 against 63,248). The GWAS Catalog is itself ascertained on GRCh38-era studies, arrays
+and imputation panels, so its variants align better with what GRCh38 can call. Only 136,306 of
+341,981 significant rsIDs could be placed in T2T coordinates at all. The asymmetry is a property
+of the catalog, not evidence that T2T loses signal, and the magnitude of change is the only part
+of this result that should be quoted.
+
+*By trait area*, share of the colocalisation union that changes under a reference swap:
+
+| Trait area | Shared | Changed | Share changed |
+|---|---|---|---|
+| psychiatric | 137 | 237 | **63%** |
+| neurodevelopmental | 69 | 112 | **62%** |
+| immune | 203 | 266 | **57%** |
+| gastrointestinal | 14 | 17 | **55%** |
+| neurodegenerative | 36 | 41 | **53%** |
+| cancer | 74 | 83 | **53%** |
+
+The two areas the project's thesis predicts should be most exposed — psychiatric and
+neurodevelopmental — do change most, and cancer and neurodegenerative least. The spread is
+modest and the groups are coarse keyword matches, so this is a consistent tendency rather than
+a test.
+
+*Bounds.* Variants are matched on T2T chromosome and position without checking allele identity.
+Trait groups are keyword-based and a trait can fall in more than one. Everything above is
+conditional on each arm's own eGene selection and credible sets.
 
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
