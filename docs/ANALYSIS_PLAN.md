@@ -395,12 +395,40 @@ X alignment in males is a different problem than in females. Stratified XX and X
 exist. Determine whether the effect is XY-driven, XX-driven, or both, and whether it is an
 artifact of ploidy handling. *Cost: low. Do this early — it may invalidate a headline.*
 
-**Test ancestry-dependence of discordance.** `[NOT STARTED]` Haplotype sampling matches donors to a reference
-panel, so donors whose ancestry the panel covers poorly receive worse subgraphs. Regress
-per-donor missingness and mean het allele balance on genotype PCs, separately per arm. If the
-graph arms show PC dependence the linear arms do not, method choice interacts with ancestry —
-a generalisability finding, not a technical one. Ancestry assignments exist at
-`runs/wp01_ancestry_hwe_20260808_v3/brainvar_ancestry_assignments.tsv`. *Cost: low.*
+**Test ancestry-dependence of discordance.** `[COMPLETE]` Run root
+`runs/ancestry_dependence_20260816`. Cohort composition: EUR 104, AFR 62, AMR 43, plus 16
+donors in smaller or uncertain groups.
+
+Two per-donor quantities from the genotype matrices the association actually used —
+missingness, and alternate-allele load as a proxy for how far a donor sits from the reference.
+The comparison is the *change* within a donor between arms, which removes any constant
+per-donor effect.
+
+**The reference swap is not ancestry-neutral, and the direction reverses between groups.**
+Moving from GRCh38 to T2T changes median alternate load by:
+
+| Ancestry | Change in alternate load |
+|---|---|
+| EUR (n = 104) | **−0.047** |
+| AMR (n = 43) | −0.029 |
+| AFR (n = 62) | **+0.017** |
+
+Kruskal-Wallis p = 1.3×10⁻³⁸, and the pattern is identical under both aligners. European-
+ancestry donors come to look *more* like the reference on T2T and African-ancestry donors
+*less* like it. That is the expected consequence of the two references' provenance —
+T2T-CHM13 derives from a single haploid European-ancestry cell line, while GRCh38 is a mosaic
+with substantial African-ancestry contribution — but it is worth measuring rather than
+assuming, and it means the reference choice interacts with cohort composition.
+
+The aligner axis shows the same test at roughly a fiftieth of the magnitude
+(+0.0011 to +0.0007 across groups within GRCh38), and missingness changes on every axis are
+small in absolute terms (+0.0002 to +0.0007) even where significant.
+
+*What this does not establish.* Alternate load describes reference bias; it does not show that
+African-ancestry donors get worse eQTL estimates on T2T. Linking the shift to per-donor
+contribution to discordance is the natural follow-up and has not been done. Ancestry labels
+are projected superpopulation assignments rather than self-reported, and the groups outside
+EUR, AFR and AMR are too small to test.
 
 ### Characterise discordant regions and gene classes `[COMPLETE]`
 Method-sensitive genes are enriched for ClinGen recurrent-CNV regions (OR 2.9–9.1), human

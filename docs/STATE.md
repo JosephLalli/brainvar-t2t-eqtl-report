@@ -40,6 +40,7 @@ aligner axis.
 | Top-k concordance | Genome-wide stability does not carry to the head of the ranking. A reference swap changes **19–22 of the top 100** genes (rank correlation 0.83); an aligner swap changes 5 (0.96). Five of the reference-swap changes are genes not testable in the other arm at all. | `topk_rank_concordance_20260816` |
 | Lead-variant switching | Among genes that are eGenes in **both** arms, a reference swap changes the lead variant for **41%** and an aligner swap for 22–24%. Median move 11–14 kb; a fifth to a quarter cross the TSS. Whether the two leads tag the same signal is unresolved — LD between them is not yet computed. | `lead_variant_switching_20260816` |
 | Lead-switch LD | Most lead switches are relabelling, not new hypotheses. Median r² between the two leads is 0.85 for a reference swap and 0.93 for an aligner swap; 56% and ~70% exceed r² 0.8. Only ~12% (reference) and ~5% (aligner) are effectively independent, so roughly **5% of shared eGenes** get a genuinely different causal candidate under a reference swap. Corrects the emphasis of the distance stage. | `lead_switch_ld_20260816` |
+| Ancestry dependence | **The reference swap is not ancestry-neutral.** Moving to T2T changes median alternate-allele load by −0.047 in EUR donors and **+0.017 in AFR** donors (Kruskal p = 1.3×10⁻³⁸), identical under both aligners — European donors come to look more like the reference and African donors less. The aligner axis shows the same test at ~1/50 the magnitude. | `ancestry_dependence_20260816` |
 
 ## Known risks
 
@@ -55,6 +56,7 @@ aligner axis.
   `ANALYSIS_PLAN.md`.
 - **SuSiE reuse is unverified.** Candidate outputs are e36-era, not the current v4/k35 arms.
   Confirm arm correspondence before building *Count credible sets per gene* on them.
+- **The ancestry shift is described, not linked to outcomes.** Alternate load measures reference bias; whether it degrades eQTL estimates for AFR donors specifically is untested and is the natural follow-up.
 - **`collect_report_data.py` lives outside version control**, in the analysis workspace. It is
   the single point of failure for reproducing the page. Moving it into this repo is a small,
   worthwhile task nobody has done.

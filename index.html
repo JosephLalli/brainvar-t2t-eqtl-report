@@ -119,6 +119,7 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     <li><a href="#classes">What the moved regions are made of</a></li>
     <li><a href="#universe">The genes that were never askable</a></li>
     <li><a href="#chrx">Chromosome X, and why sex decides it</a></li>
+    <li><a href="#ancestry">Ancestry, and who a reference represents</a></li>
     <li><a href="#interaction">Genotype×sex interaction, and why scale decides it</a></li>
     <li><a href="#stratified">Sex-stratified maps</a></li>
     <li><a href="#contrast">Contrasting effect sizes between sexes</a></li>
@@ -769,6 +770,45 @@ reports a diluted version of a much stronger effect in half the samples, and sho
 stratified. It also means the sex-stratified work that follows — built for an entirely
 different question — is not separable from the methods question after all.</p>
 
+<h2 id="ancestry">Ancestry, and who a reference represents</h2>
+
+<p>Sex is one axis on which a method change can fall unevenly across a cohort. Ancestry is the
+other, and it has a more direct mechanism: a reference genome is a particular sequence from
+particular people, so how well it represents a donor depends on where that donor's ancestry
+sits relative to it.</p>
+
+<p>Measuring that needs no association model. Each donor's mean alternate-allele dosage says
+how far they sit from whichever reference is in use, and the change in it between arms says
+whether a reference swap moved them closer or further away. This cohort is
+104 donors of European, 62 of
+African and 43 of American projected ancestry, which is enough
+to compare.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Ancestry group</th><th>Donors</th><th>Change in non-reference load on T2T</th><th>Change under an aligner swap</th></tr></thead><tbody><tr><td>EUR</td><td>104</td><td><strong>-0.047</strong></td><td>+0.0009</td></tr><tr><td>AMR</td><td>43</td><td><strong>-0.029</strong></td><td>+0.0011</td></tr><tr><td>AFR</td><td>62</td><td><strong>+0.017</strong></td><td>+0.0007</td></tr></tbody></table></div><p class="tnote">Median change in mean alternate-allele dosage per donor, a proxy for how far a donor sits from the reference. Kruskal-Wallis across groups: p = 1.3e-38 for the reference swap and 2.7e-07 for the aligner swap. Ancestry labels are projected superpopulation assignments, not self-reported, and groups outside these three are too small to test.</p>
+
+<p><strong>The direction reverses between groups.</strong> Moving to T2T reduces the
+non-reference load of European-ancestry donors by 0.047 and
+<em>increases</em> it for African-ancestry donors by
+0.017. The pattern is identical under both aligners, so it is a
+property of the reference and not of the alignment.</p>
+
+<p>This is what the two references' provenance would predict. T2T-CHM13 is a single haploid
+cell line of largely European ancestry; GRCh38 is a mosaic with substantial African-ancestry
+contribution. Swapping one for the other therefore moves the reference point, and it moves it
+toward some donors and away from others. The aligner swap does the same test at roughly a
+fiftieth of the magnitude.</p>
+
+<div class="callout">
+<p><strong>What this does and does not say.</strong> It measures reference bias, not accuracy.
+A donor carrying more non-reference alleles is further from the reference, which is a fact
+about the reference rather than about the donor or about the quality of their genotypes. It
+does <em>not</em> show that African-ancestry donors receive worse eQTL estimates on T2T —
+establishing that would mean linking this shift to those donors' contribution to the
+discordance measured earlier, which has not been done. What it does establish is that
+reference choice interacts with cohort composition, and that a study reporting a T2T
+reanalysis of an ancestrally diverse cohort is not making an ancestry-neutral change.</p>
+</div>
+
 <h2 id="interaction">Genotype×sex interaction, and why scale decides it</h2>
 
 <p>Does a variant's effect on expression differ between XX and XY donors? The direct test
@@ -972,6 +1012,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       matched-gene comparison.</li>
   <li>The chromosome X effect is specific to XX donors under pangenomic alignment on T2T
       (odds 7.27); the other seven cells of the design show nothing.</li>
+  <li><strong>A reference swap is not ancestry-neutral.</strong> Moving to T2T reduces
+      European-ancestry donors' non-reference load by 0.047 and
+      raises African-ancestry donors' by 0.017, identically
+      under both aligners.</li>
   <li>The four arms agree closely on cis-eQTL <em>yield</em>, but not on the surface beneath
       it. Reference choice perturbs effect estimates about 10 times more than
       aligner choice does, and that disagreement is spatially concentrated rather than
