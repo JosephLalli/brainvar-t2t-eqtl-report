@@ -116,7 +116,28 @@ and agreement of association calls at |z| > 4, for every contrast.
 Run root: `runs/gene_discordance_disease_20260816`.
 
 ### Calibrate: what counts as a large difference
-**Add the variant-caller axis.** `[NOT STARTED]` The yardstick. Re-run the genotype→association
+**Add the variant-caller axis.** `[IN PROGRESS — allele-frequency stage]` Run root
+`runs/caller_axis_af_20260816`; script `scratch/analyze_caller_axis_af_20260816.py`.
+
+*Scoped in two stages.* The full genotype-to-association rerun is expensive and gated. The
+allele-frequency instrument gives the yardstick without it: frequencies are recomputed
+identically from each callset over the same donors, and because every contrast here holds the
+reference fixed, variant identifiers (`chrom_pos_ref_alt`) match directly with no liftover.
+That places the caller and the aligner on one footing immediately. The association-level
+version remains outstanding and is what would let the caller axis be scored through the same
+window and gene pipelines as the other axes.
+
+*Correctness detail worth keeping:* two analysis donors are absent from the HaplotypeCaller
+callsets (`5212_D2` from GRCh38, `6085_D2` from T2T). Without intersecting the donor sets
+`bcftools` silently skips them in one callset and includes them in another, so frequencies
+would be computed over different samples. The run intersects to the 223 donors present in all
+six callsets.
+
+*Pilot result, chr22 only, superseded by the run in progress:* a caller swap moved allele
+frequencies roughly twice as much as an aligner swap on the same reference — 9.0% of sites
+beyond 0.01 against 4.2% within GRCh38, and 14.5% against 9.0% within T2T.
+
+Original statement of the task: re-run the genotype→association
 path with HaplotypeCaller in place of DeepVariant, linear arms, both references, then score
 `hc_minus_dv_*` through the identical window and gene pipelines. If reference-swap discordance
 is smaller than caller-swap discordance, that is the strongest possible reassurance statement;
