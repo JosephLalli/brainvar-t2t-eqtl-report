@@ -305,6 +305,30 @@ t_lead = table(
          "the measurement that would settle that is linkage disequilibrium between them, "
          "which has not been computed.")
 
+LDS = DATA["lead_switch_ld"]["by_contrast"]
+ld_same_ref = min(LDS[k]["share_r2_above_0.8"] for k in REF_KEYS)
+ld_same_wf = min(LDS[k]["share_r2_above_0.8"] for k in WF_KEYS)
+ld_indep_ref = max(LDS[k]["share_r2_below_0.2"] for k in REF_KEYS)
+# Compounding the two stages: switched at all, and switched to something independent.
+net_ref = max((1 - LEAD[k]["share_same_lead"]) * LDS[k]["share_r2_below_0.2"]
+              for k in REF_KEYS)
+net_wf = max((1 - LEAD[k]["share_same_lead"]) * LDS[k]["share_r2_below_0.2"]
+             for k in WF_KEYS)
+
+t_lead_ld = table(
+    ["Contrast", "Switched pairs measured", "Median r²",
+     "Same signal (r² &gt; 0.8)", "Independent (r² &lt; 0.2)"],
+    [[CONTRAST_LABEL[k], f'{LDS[k]["pairs_with_ld"]:,}', f'{LDS[k]["median_r2"]:.3f}',
+      f'<strong>{LDS[k]["share_r2_above_0.8"]:.1%}</strong>',
+      f'{LDS[k]["share_r2_below_0.2"]:.1%}']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="r² between the two leads, computed in the positive arm's own genotype matrix over "
+         "pairwise-complete donors rather than through an external panel that would carry its "
+         "own reference. Restricted to switched leads whose counterpart is nameable in that "
+         "arm's variant space; a lead with no counterpart there is excluded, and those are the "
+         "cases where the arms differ most — so the independent share is understated.")
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -739,20 +763,31 @@ its lead.</strong> These are not sub-resolution wobbles: only about an eighth of
 under a kilobase, the median is over ten, and a fifth to a quarter land on the other side of
 the transcription start site.</p>
 
-<div class="callout">
-<p><strong>What this does not establish.</strong> Whether the two leads tag the same underlying
-signal. A move of fourteen kilobases inside one haplotype block is cosmetic; the same move
-across a recombination boundary is a different causal hypothesis, and distance cannot tell them
-apart. The measurement that would is the linkage disequilibrium between the two leads, and it
-has not been computed. Until it is, read this as "the arms nominate different variants", not as
-"the arms find different signals" — the second is a stronger claim than the data currently
-supports.</p>
-</div>
+<p>Taken alone that invites a conclusion it does not support, because a different variant is not
+the same thing as a different signal. Fourteen kilobases inside one haplotype block is a
+relabelling; the same distance across a recombination boundary is a different causal
+hypothesis. Distance cannot tell them apart, so the linkage disequilibrium between each pair of
+leads was measured directly, in the arm's own genotypes.</p>
 
-<p>All three numbers are true and they belong together. The map as a whole is stable, the
-shortlist drawn off the top of it is less so, and the causal candidate within a shared hit is
-less stable still. Which raises the question the rest of this addresses: what distinguishes the
-part that moves.</p>
+{t_lead_ld}
+
+<p>It softens the result substantially. The median r² between the two leads is
+{min(LDS[k]["median_r2"] for k in REF_KEYS):.2f} for a reference swap and
+{min(LDS[k]["median_r2"] for k in WF_KEYS):.2f} for an aligner swap, and
+{ld_same_ref:.0%} to {ld_same_wf:.0%} of switched pairs exceed r² = 0.8. <strong>Most lead
+changes are the same signal wearing a different label.</strong> Only about
+{ld_indep_ref:.0%} of them are effectively independent under a reference swap.</p>
+
+<p>Compounding the two stages gives the number that matters: a reference swap leaves roughly
+<strong>{net_ref:.0%} of shared eGenes</strong> with a genuinely different causal candidate, and
+an aligner swap about {net_wf:.0%}. That is a far weaker claim than four-in-ten, and it is the
+correct one.</p>
+
+<p>All four numbers are true and they belong together. The map as a whole is stable; the
+shortlist drawn off the top of it is less so; the nominated variant within a shared hit changes
+often but usually cosmetically; and a small, real remainder is a different hypothesis
+altogether. Which raises the question the rest of this addresses: what distinguishes the part
+that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -1320,10 +1355,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {topk_ref_lo} to {topk_ref_hi} of the top hundred genes and an aligner swap
       {topk_wf_hi}, so the practical consequence of the method choice is larger than the
       genome-wide correlation implies.</li>
-  <li><strong>Agreeing on the gene is not agreeing on the variant.</strong> Among genes both
-      arms call as eGenes, a reference swap nominates a different lead variant
-      {1 - lead_ref_same_hi:.0%} to {1 - lead_ref_same_lo:.0%} of the time — a median move of
-      more than ten kilobases. Whether those leads tag the same signal is unresolved.</li>
+  <li><strong>Agreeing on the gene is usually agreeing on the signal.</strong> A reference
+      swap nominates a different lead variant for {1 - lead_ref_same_hi:.0%} to
+      {1 - lead_ref_same_lo:.0%} of shared eGenes, but {ld_same_ref:.0%} of those pairs are in
+      high linkage disequilibrium. Only about {net_ref:.0%} of shared eGenes end up with a
+      genuinely different causal candidate.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       {gd_or_lo:.1f} to {gd_or_hi:.1f} times enriched for recurrent genomic-disorder regions,
       {har_or_lo:.1f} to {har_or_hi:.1f} times for human accelerated regions, and consistently

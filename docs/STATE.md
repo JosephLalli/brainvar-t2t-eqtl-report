@@ -5,14 +5,11 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Finish lead-variant switching by computing LD between the two leads.** The distance stage is
-complete and shows that a reference swap changes the lead variant for 41% of genes that are
-eGenes in both arms. Whether that matters depends entirely on whether the two leads tag the
-same signal, which distance cannot answer. Compute r² between each pair of leads from the
-positive arm's genotype matrix (`runs/association_genotypes_v4_20260808`), for the pairs where
-both variants are present there.
-
-Then, once `runs/caller_axis_af_20260816` finishes, fold the caller yardstick into the page.
+**Fold the variant-caller yardstick into the page** once `runs/caller_axis_af_20260816`
+finishes. It is running over chr1, chr6, chr17, chr19, chr22 and chrX for six callsets; the
+chr22 pilot suggested a caller swap perturbs allele frequencies roughly twice as much as an
+aligner swap, which if it holds is the strongest reassurance statement available for the
+aligner axis.
 
 ### After that
 
@@ -42,6 +39,7 @@ Then, once `runs/caller_axis_af_20260816` finishes, fold the caller yardstick in
 | Gene universe | The 159-gene net difference between universes hides a **1,175-gene turnover**: 667 genes testable only on GRCh38, 508 only on T2T, and **278 of them are eGenes**. Exclusive genes are more often eGenes than shared ones (26.2% / 21.7% vs 20.8%). T2T-exclusive genes are ~4x as duplicated as shared genes. Majority are absent from the other annotation entirely, so annotation release explains much of the turnover. | `gene_universe_asymmetry_20260816` |
 | Top-k concordance | Genome-wide stability does not carry to the head of the ranking. A reference swap changes **19–22 of the top 100** genes (rank correlation 0.83); an aligner swap changes 5 (0.96). Five of the reference-swap changes are genes not testable in the other arm at all. | `topk_rank_concordance_20260816` |
 | Lead-variant switching | Among genes that are eGenes in **both** arms, a reference swap changes the lead variant for **41%** and an aligner swap for 22–24%. Median move 11–14 kb; a fifth to a quarter cross the TSS. Whether the two leads tag the same signal is unresolved — LD between them is not yet computed. | `lead_variant_switching_20260816` |
+| Lead-switch LD | Most lead switches are relabelling, not new hypotheses. Median r² between the two leads is 0.85 for a reference swap and 0.93 for an aligner swap; 56% and ~70% exceed r² 0.8. Only ~12% (reference) and ~5% (aligner) are effectively independent, so roughly **5% of shared eGenes** get a genuinely different causal candidate under a reference swap. Corrects the emphasis of the distance stage. | `lead_switch_ld_20260816` |
 
 ## Known risks
 

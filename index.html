@@ -286,20 +286,31 @@ its lead.</strong> These are not sub-resolution wobbles: only about an eighth of
 under a kilobase, the median is over ten, and a fifth to a quarter land on the other side of
 the transcription start site.</p>
 
-<div class="callout">
-<p><strong>What this does not establish.</strong> Whether the two leads tag the same underlying
-signal. A move of fourteen kilobases inside one haplotype block is cosmetic; the same move
-across a recombination boundary is a different causal hypothesis, and distance cannot tell them
-apart. The measurement that would is the linkage disequilibrium between the two leads, and it
-has not been computed. Until it is, read this as "the arms nominate different variants", not as
-"the arms find different signals" — the second is a stronger claim than the data currently
-supports.</p>
-</div>
+<p>Taken alone that invites a conclusion it does not support, because a different variant is not
+the same thing as a different signal. Fourteen kilobases inside one haplotype block is a
+relabelling; the same distance across a recombination boundary is a different causal
+hypothesis. Distance cannot tell them apart, so the linkage disequilibrium between each pair of
+leads was measured directly, in the arm's own genotypes.</p>
 
-<p>All three numbers are true and they belong together. The map as a whole is stable, the
-shortlist drawn off the top of it is less so, and the causal candidate within a shared hit is
-less stable still. Which raises the question the rest of this addresses: what distinguishes the
-part that moves.</p>
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Switched pairs measured</th><th>Median r²</th><th>Same signal (r² &gt; 0.8)</th><th>Independent (r² &lt; 0.2)</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>939</td><td>0.852</td><td><strong>56.0%</strong></td><td>11.9%</td></tr><tr><td>T2T − GRCh38 · graph</td><td>914</td><td>0.854</td><td><strong>56.1%</strong></td><td>13.2%</td></tr><tr><td>graph − linear · GRCh38</td><td>568</td><td>0.929</td><td><strong>70.8%</strong></td><td>4.0%</td></tr><tr><td>graph − linear · T2T</td><td>594</td><td>0.934</td><td><strong>69.0%</strong></td><td>6.2%</td></tr></tbody></table></div><p class="tnote">r² between the two leads, computed in the positive arm's own genotype matrix over pairwise-complete donors rather than through an external panel that would carry its own reference. Restricted to switched leads whose counterpart is nameable in that arm's variant space; a lead with no counterpart there is excluded, and those are the cases where the arms differ most — so the independent share is understated.</p>
+
+<p>It softens the result substantially. The median r² between the two leads is
+0.85 for a reference swap and
+0.93 for an aligner swap, and
+56% to 69% of switched pairs exceed r² = 0.8. <strong>Most lead
+changes are the same signal wearing a different label.</strong> Only about
+13% of them are effectively independent under a reference swap.</p>
+
+<p>Compounding the two stages gives the number that matters: a reference swap leaves roughly
+<strong>5% of shared eGenes</strong> with a genuinely different causal candidate, and
+an aligner swap about 1%. That is a far weaker claim than four-in-ten, and it is the
+correct one.</p>
+
+<p>All four numbers are true and they belong together. The map as a whole is stable; the
+shortlist drawn off the top of it is less so; the nominated variant within a shared hit changes
+often but usually cosmetically; and a small, real remainder is a different hypothesis
+altogether. Which raises the question the rest of this addresses: what distinguishes the part
+that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -944,10 +955,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       19 to 22 of the top hundred genes and an aligner swap
       5, so the practical consequence of the method choice is larger than the
       genome-wide correlation implies.</li>
-  <li><strong>Agreeing on the gene is not agreeing on the variant.</strong> Among genes both
-      arms call as eGenes, a reference swap nominates a different lead variant
-      41% to 42% of the time — a median move of
-      more than ten kilobases. Whether those leads tag the same signal is unresolved.</li>
+  <li><strong>Agreeing on the gene is usually agreeing on the signal.</strong> A reference
+      swap nominates a different lead variant for 41% to
+      42% of shared eGenes, but 56% of those pairs are in
+      high linkage disequilibrium. Only about 5% of shared eGenes end up with a
+      genuinely different causal candidate.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       2.9 to 9.1 times enriched for recurrent genomic-disorder regions,
       1.7 to 1.9 times for human accelerated regions, and consistently

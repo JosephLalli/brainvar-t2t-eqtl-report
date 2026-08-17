@@ -269,7 +269,7 @@ known-difficult region means something very different from one in ordinary seque
 that stratification the comparison is not interpretable. *Cost: medium.*
 
 ### Downstream consequence: does the conclusion change
-**Measure lead-variant switching by LD.** `[PARTIAL — distance stage complete]`
+**Measure lead-variant switching by LD.** `[COMPLETE]`
 Run root `runs/lead_variant_switching_20260816`.
 
 Restricted to genes that are eGenes in **both** arms, so yield differences cannot contribute.
@@ -291,12 +291,32 @@ Only about an eighth of the moves are under a kilobase, so these are not sub-res
 jitter; the median move is over ten kilobases and a fifth to a quarter cross to the other side
 of the transcription start site.
 
-*What this does not yet establish, and the page must say so:* whether the two leads tag the
-same underlying signal. A move of 14 kb inside a strong haplotype block is cosmetic; the same
-move across a recombination boundary is a different causal hypothesis. **Linkage disequilibrium
-between the two leads is the measurement that separates them, and it has not been computed.**
-Distance is a weak proxy and is labelled as one. Completing this needs the genotype matrices
-and is the remaining stage of this workstream.
+*The LD stage resolves it, and it softens the result.* Run root
+`runs/lead_switch_ld_20260816`. r² between the two leads is computed in the positive arm's own
+genotype matrix over pairwise-complete donors, so the leads are compared as that arm measured
+them rather than through an external panel carrying its own reference.
+
+| Contrast | Median r² | Same signal (r² > 0.8) | Independent (r² < 0.2) |
+|---|---|---|---|
+| T2T − GRCh38 · linear | 0.852 | **56.0%** | 11.9% |
+| T2T − GRCh38 · graph | 0.854 | 56.1% | 13.2% |
+| graph − linear · GRCh38 | 0.929 | 70.8% | 4.0% |
+| graph − linear · T2T | 0.934 | 69.0% | 6.2% |
+
+**Most lead switches are relabelling within a haplotype block, not a new causal hypothesis.**
+Compounding the two stages: a reference swap changes the lead for about 41% of shared eGenes,
+and roughly an eighth of those changes are to an effectively independent variant — so on the
+order of **5% of shared eGenes** get a genuinely different causal candidate. For an aligner
+swap it is closer to 1%.
+
+That is a far weaker claim than the distance stage on its own implied, and the page has been
+corrected to state it this way. The distance result was not wrong, but read alone it invited
+the conclusion that four in ten genes get a different answer, which the LD says they do not.
+
+*One conservative bias worth keeping:* pairs are restricted to switched leads whose counterpart
+is nameable in the positive arm's own variant space. A lead with no counterpart there is
+excluded — and those are precisely the cases where the two arms differ most, so the independent
+share is understated rather than inflated.
 
 **Count credible sets per gene.** `[NOT STARTED]` Number of SuSiE credible sets per gene, and
 credible-set membership overlap, per arm. Preferred over conditional/stepwise analysis on cost
