@@ -2,7 +2,7 @@
 """Assemble the BrainVar GRCh38-vs-T2T eQTL report page.
 
 Every number in the prose and in the tables is read from report_data.json, which
-is itself collected only from corrected (post-nanfix) run roots.  Nothing is
+is itself collected only from the four-arm run tree.  Nothing is
 transcribed by hand, so the text cannot drift from the run tree.
 """
 from __future__ import annotations
@@ -24,7 +24,6 @@ LABEL = {
     "graph_t2t_dv": "graph · T2T",
 }
 
-V = DATA["validation"]
 INT = DATA["four_arm_int_k35"]
 LOG = DATA["four_arm_logcpm_k35"]
 CURVE = DATA["expression_pc_curve"]
@@ -32,8 +31,6 @@ STRAT = DATA["stratified_maps"]
 INTER = DATA["logcpm_interaction"]
 CT = DATA["sex_contrast"]
 NC = DATA["direction_null_check"]
-RAW = DATA["nan_whole_sample"]
-RAW_XX = DATA["nan_by_arm_raw"]
 HS = DATA["hotspots"]
 HSC = HS["by_contrast"]
 HSW = HS["windows"]
@@ -62,19 +59,81 @@ wf_q95 = max(HSC[k]["quantiles_abs_delta_z"]["0.95"] for k in WF_KEYS)
 
 HSA = HS["annotation_summary"]
 SPLIT = HS["context_split"]
-N_REP = SPLIT["replicating"]["n"]
-N_SNG = SPLIT["single_workflow"]["n"]
+N_BOTH = SPLIT["replicating"]["n"]
+N_ONE = SPLIT["single_workflow"]["n"]
 GO_SIG = HS["go"]["significant_terms"]
 GO_SIG_CONTRAST = (CONTRAST_LABEL[GO_SIG[0]["contrast_key"]] if GO_SIG else "")
 RANKSUM = SPLIT["rank_sum_p"]
+GW = HS["genomewide"]
+GWN = GW["null_vs_observed"]
+# The diagnostic stated at its least favourable: the contrast where the observed maximum
+# stands furthest above the null maximum still barely clears it.
+gw_ratio_hi = max(v["observed_max"] / v["null_max_median"] for v in GWN.values())
+gw_ratio_ref = (GWN["t2t_minus_grch38_linear"]["observed_max"]
+                / GWN["t2t_minus_grch38_linear"]["null_max_median"])
+gw_n10 = [v["above_10"] for v in GW["robust_z"].values()]
+gw_n25 = [v["above_25"] for v in GW["robust_z"].values()]
+
+EXC = HS["exceedance"]
+EXA = EXC["achieved"]
+EXCUT = EXC["cut_by_contrast"]
+AGREE = EXC["aligner_agreement"]
+exc_lo = min(v["flagged"] for v in EXA.values())
+exc_hi = max(v["flagged"] for v in EXA.values())
+cut_lo, cut_hi = min(EXCUT.values()), max(EXCUT.values())
+# The starting point that was proposed before the error rate was pinned, kept so the
+# cost of the more permissive cut is visible rather than argued.
+EXC196 = {k: next(e for e in v if abs(e["cut"] - 1.96) < 1e-9)
+          for k, v in EXC["exceedance"].items()}
+n196_lo = min(v["flagged"] for v in EXC196.values())
+n196_hi = max(v["flagged"] for v in EXC196.values())
+fdr196_lo = min(v["estimated_fdr"] for v in EXC196.values())
+fdr196_hi = max(v["estimated_fdr"] for v in EXC196.values())
+
+DIRR = HS["directional"]
+DIR_KEY = "t2t_minus_grch38_linear"
+DSTR = DIRR["results"][DIR_KEY]["delta_strength"]
+DSGN = DIRR["results"][DIR_KEY]["delta_z"]
+FRACS_DIR = [("segdup_bp_fraction", "Segmental duplication"),
+             ("repeat_bp_fraction", "Repeat content"),
+             ("mappability_bp_fraction", "100-mer mappability")]
+
+
+def fold(side: str, key: str) -> float:
+    base = DSTR["neither"][f"{key}_mean"]
+    return DSTR[side][f"{key}_mean"] / base if base else float("nan")
+
+
+def unmappable_fold(side: str) -> float:
+    base = 1 - DSTR["neither"]["mappability_bp_fraction_mean"]
+    return (1 - DSTR[side]["mappability_bp_fraction_mean"]) / base if base else float("nan")
+
+
+dir_dup_lo, dir_dup_hi = sorted((fold("up", "segdup_bp_fraction"),
+                                 fold("down", "segdup_bp_fraction")))
+dir_unmap_lo, dir_unmap_hi = sorted((unmappable_fold("up"), unmappable_fold("down")))
+
+
+def dq(side: str, key: str, q: str) -> float:
+    return DSTR[side][f"{key}_quantiles"][q]
+
+
+# These window fractions are heavily zero-inflated, so the contrast against the rest of
+# the genome is quoted at the upper tail rather than as a shift in the middle.
+dup_q95_up = dq("up", "segdup_bp_fraction", "0.95")
+dup_q95_dn = dq("down", "segdup_bp_fraction", "0.95")
+dup_q95_rest = dq("neither", "segdup_bp_fraction", "0.95")
+map_q05_up = dq("up", "mappability_bp_fraction", "0.05")
+map_q05_dn = dq("down", "mappability_bp_fraction", "0.05")
+map_q05_rest = dq("neither", "mappability_bp_fraction", "0.05")
 # Windows whose every ClinGen-mappable variant sits in a recurrent-CNV breakpoint, and
 # the strongest partial case, named in the prose.
 BP_FULL = sorted((w for w in HSW if w["clingen_breakpoint_fraction"] >= 1.0),
                  key=lambda w: w["interval"])
 BP_PART = sorted((w for w in HSW if 0 < w["clingen_breakpoint_fraction"] < 1.0),
                  key=lambda w: -w["clingen_breakpoint_fraction"])
-# The one replicating window that is nonetheless duplication-rich; named on the page so
-# the tendency is not presented as a clean partition.
+# The one aligner-independent window that is nonetheless duplication-rich; named on the
+# page so the tendency is not presented as a clean partition.
 SEGDUP_EXCEPTION = max((w for w in HSW if w["replication"] == 2),
                        key=lambda w: w["segdup_bp_fraction"])
 
@@ -122,35 +181,6 @@ def table(headers, rows, *, cls="", note="") -> str:
 
 
 # ----------------------------------------------------------------- tables
-t_validation = table(
-    ["Analysis profile", "Points", "What it is"],
-    [
-        ["<code>pooled_int</code>", V["points"]["pooled_int"],
-         "Genome-wide genotype×sex interaction, inverse-normal scale"],
-        ["<code>logcpm_int</code>", V["points"]["logcpm_int"],
-         "The same interaction on log2(CPM+1), at k = 10 and k = 35"],
-        ["<code>interaction_pc</code>", V["points"]["interaction_pc"],
-         "Interaction-PC sensitivity points"],
-        ["<code>stratified_map</code>", V["points"]["stratified_map"],
-         "Permutation cis-maps within each sex across the PC grid"],
-        ["<code>stratified_nominal</code>", V["points"]["stratified_nominal"],
-         "Full nominal scans within each sex (every cis pair)"],
-        ["<strong>Total</strong>", f'<strong>{V["total_points"]}</strong>',
-         f'<strong>plus {V["downstream_points"]} all-variant contrast points</strong>'],
-    ])
-
-t_missing = table(
-    ["Arm", "cis-tested variants", "Variants with ≥1 missing call", "Share",
-     "NaNs reaching TensorQTL"],
-    [[LABEL[a], f'{RAW[a]["variants"]:,}',
-      f'{RAW[a]["source_variant_rows_with_nan"]:,}',
-      f'{100 * RAW[a]["source_variant_rows_with_nan"] / RAW[a]["variants"]:.1f}%',
-      f'{RAW[a]["tensorqtl_nan_values"]}'] for a in CELLS if a in RAW],
-    note="Counted across all 225 donors, the sample the maps are actually built on. A "
-         "single-sex stratum shows a lower rate (17.4 to 19.4 percent in XX) purely because "
-         "fewer donors means fewer chances for any one variant to carry a missing call. The "
-         "final column is the whole point of the rebuild.")
-
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -226,18 +256,18 @@ FRACS = [("segdup_bp_fraction", "Segmental duplication"),
          ("har_bp_fraction", "Human accelerated region")]
 t_hs_context = table(
     ["Window sequence context, median",
-     f"Recovered by both workflows (n = {N_REP})",
-     f"One workflow only (n = {N_SNG})"],
+     f"Reference effect under both aligners (n = {N_BOTH})",
+     f"Under one aligner only (n = {N_ONE})"],
     [[name, f'{SPLIT["replicating"][key]:.3f}', f'{SPLIT["single_workflow"][key]:.3f}']
      for key, name in FRACS],
     cls="numeric",
     note=f"Base-pair fractions of each 100-kb window, from native T2T annotation tracks. "
-         f"With {N_REP} windows against {N_SNG} this is a description of the two groups, "
+         f"With {N_BOTH} windows against {N_ONE} this is a description of the two groups, "
          f"not a powered test; a two-sided rank-sum comparison of the segmental-duplication "
          f"fractions returns p = {RANKSUM['segdup_bp_fraction']:.2f}.")
 
 t_hs_windows = table(
-    ["Window (T2T)", "Both workflows", "Variants", "Mean |Δ Z|", "Segdup",
+    ["Window (T2T)", "Both aligners", "Variants", "Mean |Δ Z|", "Segdup",
      "Mappability", "cCRE overlap", "ClinGen recurrent-CNV breakpoint", "Anchor genes"],
     [[mb(w["interval"]),
       "yes" if w["replication"] == 2 else "—",
@@ -250,9 +280,61 @@ t_hs_windows = table(
       (w["anchor_genes"].replace(";", ", ") or "—")]
      for w in HSW],
     note="The 13 distinct windows ranked in the top ten of either reference contrast, "
-         "ordered by workflow replication and then by segmental-duplication content. "
+         "ordered by whether the reference effect holds under both aligners and then by "
+         "segmental-duplication content. "
          "cCRE overlap is evaluated only among variants with a unique normalized GRCh38 "
          "position, which is the denominator shown.")
+
+t_gw = table(
+    ["Contrast", "Windows tested", "Largest observed window mean |Δ Z|",
+     "Median largest under rotation", "Family-wise threshold", "Beyond chance"],
+    [[CONTRAST_LABEL[k], f'{GW["robust_z"][k]["windows"]:,}',
+      f'{GWN[k]["observed_max"]:.2f}', f'{GWN[k]["null_max_median"]:.2f}',
+      f'{GWN[k]["threshold"]:.2f}',
+      f'<strong>{GW["significant_by_contrast"][k]}</strong>']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note=f'{GW["rotations"]:,} chromosome-wise circular rotations per contrast, with the '
+         f'maximum window mean over the whole genome recorded on each rotation. The third '
+         f'and fourth columns are the point of the table: rotating the genome relocates the '
+         f'largest cluster but does not remove it, so what chance produces is almost exactly '
+         f'what was observed.')
+
+t_exc = table(
+    ["Contrast", "Cut", "Windows discordant", "Share of windows", "Estimated FDR",
+     "At z &gt; 1.96 instead"],
+    [[CONTRAST_LABEL[k], f'z &gt; {EXCUT[k]:.2f}',
+      f'<strong>{EXA[k]["flagged"]:,}</strong>', f'{EXA[k]["observed_rate"]:.2%}',
+      f'{EXA[k]["estimated_fdr"]:.1%}',
+      f'{EXC196[k]["flagged"]:,} at {EXC196[k]["estimated_fdr"]:.0%}']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="The cut is chosen per contrast as the most permissive one holding the estimated "
+         "false-discovery proportion at 5%. That proportion is the normal-null expectation "
+         "divided by the observed count, so it assumes a normal tail; linkage "
+         "disequilibrium correlates neighbouring windows, which makes the true null tail "
+         "heavier and this estimate a lower bound.")
+
+t_dir = table(
+    ["Statistic", "Direction", "Windows"]
+    + [n for _, n in FRACS_DIR] + ["Up vs down"],
+    [[lab, dirn, f'{blk[side]["n"]:,}']
+     + [f'{blk[side][f"{key}_quantiles"]["0.5"]:.3f} '
+        f'({blk[side][f"{key}_quantiles"]["0.95"]:.3f})' for key, _ in FRACS_DIR]
+     + [f'p = {blk["up_vs_down_rank_sum_p"][FRACS_DIR[0][0]]:.3f}' if side == "up" else ""]
+     for lab, blk in (("Association strength", DSTR), ("Signed effect", DSGN))
+     for side, dirn in (("up", "larger on T2T"), ("down", "smaller on T2T"))]
+    + [["Rest of the genome", "—", f'{DSTR["neither"]["n"]:,}']
+       + [f'{DSTR["neither"][f"{key}_quantiles"]["0.5"]:.3f} '
+          f'({DSTR["neither"][f"{key}_quantiles"]["0.95"]:.3f})' for key, _ in FRACS_DIR]
+       + [""]],
+    cls="numeric",
+    note="Median base-pair fraction per 100-kb window with the 95th percentile in brackets, "
+         "for the T2T − GRCh38 contrast within the linear workflow. Medians rather than "
+         "means because these fractions are heavily zero-inflated. Association strength is "
+         "the mean of |z| on T2T minus |z| on GRCh38; signed effect is the mean of z minus z "
+         "with both arms oriented to the same T2T alternate allele. The last column is a "
+         "two-sided rank-sum comparison of the up and down groups on duplication content.")
 
 # ----------------------------------------------------------------- prose
 int_total = sum(INT[a]["egenes_q05"] for a in CELLS)
@@ -271,10 +353,10 @@ HTML = f"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rebuilding a Brain eQTL Map on Two Reference Genomes</title>
+<title>Mapping Brain eQTLs on Two Reference Genomes</title>
 <meta name="description" content="A four-arm GRCh38-versus-T2T cis-eQTL analysis of the
-BrainVar developmental cohort, the missing-genotype bug that invalidated the first pass,
-and what survived the rebuild.">
+BrainVar developmental cohort: what changes when you swap the reference genome, what
+changes when you swap the aligner, and where on the genome the two disagree.">
 <meta name="author" content="Joseph Lalli">
 <style>
   :root {{
@@ -366,11 +448,11 @@ and what survived the rebuild.">
 <div class="wrap">
 
 <header class="masthead">
-  <h1>Rebuilding a Brain eQTL Map on Two Reference Genomes</h1>
+  <h1>Mapping Brain eQTLs on Two Reference Genomes</h1>
   <p class="standfirst">A four-arm comparison of GRCh38 against T2T-CHM13 in the BrainVar
-  developmental cohort — and an account of the one-character convention mismatch that
-  quietly deleted a quarter of the variants from the first pass, what it cost, and which
-  findings survived rebuilding everything without it.</p>
+  developmental cohort, crossing both references with both a linear and a pangenome-graph
+  aligner — what the reference changes, what the aligner changes, and the places on the
+  genome where the two references give measurably different answers.</p>
   <p class="byline">Joseph Lalli</p>
 </header>
 
@@ -378,8 +460,6 @@ and what survived the rebuild.">
   <p>Contents</p>
   <ol>
     <li><a href="#design">The question and the four arms</a></li>
-    <li><a href="#bug">The bug: NaN is not −9</a></li>
-    <li><a href="#rebuild">Rebuilding, and proving the rebuild</a></li>
     <li><a href="#pcs">How many expression PCs?</a></li>
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
@@ -393,10 +473,8 @@ and what survived the rebuild.">
 </nav>
 
 <div class="keyfig">
-  <div><span class="n">{V["total_points"]}</span><span class="l">TensorQTL analysis points
-    rebuilt and audited</span></div>
-  <div><span class="n">{V["nan_values_converted"] / 1e6:.0f}M</span><span class="l">missing
-    dosages corrected at the boundary</span></div>
+  <div><span class="n">4</span><span class="l">independently processed arms: two references
+    crossed with two aligners</span></div>
   <div><span class="n">{int_total:,}</span><span class="l">eGenes across the four arms
     at k = 35</span></div>
   <div><span class="n">{HS["nominal_rows"] / 1e6:.0f}M</span><span class="l">cis pairs in
@@ -422,77 +500,9 @@ reference; nothing is lifted over between arms to make them comparable, because 
 over is exactly the operation whose necessity is under test.</p>
 
 <p>Because all four arms run the same code with the same parameters, a difference between
-them is attributable to the reference and the aligner. That is the design's whole value,
-and it is also what makes it unforgiving: a bug in the shared path shows up in all four
-arms at once, looking deceptively like a consistent biological result.</p>
-
-<h2 id="bug">The bug: NaN is not −9</h2>
-
-<p>Genotype dosages have to encode "we don't know." The genotype Parquet files produced by
-this pipeline encode a missing dosage as an IEEE floating-point <code>NaN</code>, which is
-the ordinary choice for a numeric column with holes in it.</p>
-
-<p>TensorQTL does not use that convention. Its mean-imputation step identifies missing
-calls with an equality test against a sentinel value of <code>−9</code>:</p>
-
-<blockquote><p><code>genotypes_t == missing</code>, where <code>missing = -9</code></p></blockquote>
-
-<p>NaN is not equal to anything. It is not equal to <code>−9</code>, and by IEEE-754 it is
-not even equal to itself. So the test never fires, the missing dosages are never detected,
-never imputed, and pass straight into the linear algebra. Any variant carrying at least one
-missing call yields a NaN test statistic and drops silently out of the results.</p>
-
-<div class="callout">
-<p><strong>The failure mode is incompleteness, not corruption.</strong> No error is raised,
-no warning is printed, and every output file is well-formed and plausible. The results are
-simply missing a large, non-random slice of the variants — non-random because missingness
-correlates with coverage, with repeat content, and therefore with exactly the regions where
-the two references differ. That is the worst possible way for a bug to interact with a
-reference-comparison study.</p>
-</div>
-
-<p>The scale is not marginal. Between 24.6 and 26.6 percent of cis-tested variants in each
-arm carry at least one missing call, so roughly one variant in four was discarded from the
-first pass without a trace.</p>
-
-{fig("missing-burden", "Bar chart of the share of cis-tested variants carrying at least one missing call, by arm, ranging from 24.6 to 26.6 percent", "Missing-call burden per arm across all 225 donors. Every variant counted here was silently dropped from the pre-correction analysis. After the fix, the number of NaN values reaching TensorQTL is zero in every one of the 50 analysis points.")}
-
-{t_missing}
-
-<h2 id="rebuild">Rebuilding, and proving the rebuild</h2>
-
-<p>The fix itself is small: a boundary adapter converts NaN to <code>−9</code> in memory
-immediately before every TensorQTL call, and nowhere else. The source Parquet files are never
-rewritten — they keep the NaN convention, which is correct for every other consumer,
-including the fine-mapping tools downstream that expect NaN and would break on a sentinel.
-The conversion exists only at the one interface where the convention differs.</p>
-
-<p>Applying a fix is easy. Establishing that it was applied everywhere is the harder problem,
-and it is where most of the engineering went. Every analysis point records an audit file
-containing the count of NaN values present in its source genotypes, the count of
-<code>−9</code> sentinels that reached TensorQTL, a checksum of the adapter, a checksum of
-the driver script, the resolved input bindings, and the package versions. A point is only
-accepted if the sentinel count is at least the source NaN count.</p>
-
-<p>The whole matrix then has to validate together before anything downstream is allowed to
-run:</p>
-
-{t_validation}
-
-<p>Across all {V["total_points"]} points, <strong>{V["nan_values_converted"]:,}</strong>
-missing dosages were converted, and the terminal validation records
-<code>all_tensorqtl_inputs_nan_free: {str(V["all_inputs_nan_free"]).lower()}</code>. That is
-a machine-checked claim, not a description of intent.</p>
-
-<p>The audit design paid for itself in an unexpected way. Every stage refuses to reuse a
-directory whose recorded signature does not match what it is about to compute, and refuses
-to treat a partially written point as complete. When the rebuild was resumed after an
-interruption, that strictness caught two separate latent defects in code paths that had
-never executed before — one validator demanding an output file TensorQTL cannot produce for
-a non-interaction scan, and one audit record that included itself in the file inventory it
-was attesting to, guaranteeing a mismatch. Both raised loudly. A pipeline that had defaulted
-to "close enough" would have produced a corrected dataset whose provenance chain quietly
-meant nothing.</p>
+them is attributable to the reference and the aligner. That is the design's whole value: the two
+factors are crossed, so each can be read off separately, and an effect that appears
+under only one level of the other factor is identifiable as exactly that.</p>
 
 <h2 id="pcs">How many expression PCs?</h2>
 
@@ -502,7 +512,7 @@ principal components of the expression matrix as covariates. Too few and that st
 inflates the noise; too many and you start absorbing the genetic signal itself.</p>
 
 <p>The sweep runs ten values of k from 5 to 50 in all four arms, with permutation testing
-throughout. On corrected genotypes the aggregate curve peaks at
+throughout. The aggregate curve peaks at
 <strong>k = {agg_peak}</strong> with {agg[agg_peak]:,} eGenes, against {agg[35]:,} at k = 35.</p>
 
 {fig("pc-sweep", "Line chart of eGene yield against number of expression principal components for the four arms, rising steeply to k=30 and flattening, with peaks at k=45", "eGene yield against expression-PC count. The curve is steep to about k = 30 and nearly flat after it. Three arms peak at k = 45; linear · T2T is still rising at k = 50.")}
@@ -510,14 +520,14 @@ throughout. On corrected genotypes the aggregate curve peaks at
 {t_curve}
 
 <div class="callout">
-<p><strong>An unresolved consequence.</strong> Every map in this analysis was built at
-k = 35, and the original justification for that choice was that 35 was the maximum of the
-T2T aggregate curve. On corrected data that is no longer true: the T2T aggregate now peaks
+<p><strong>An unresolved choice.</strong> Every map in this analysis was built at
+k = 35, on the understanding that 35 was the maximum of the T2T aggregate curve. The
+sweep does not support that: the T2T aggregate peaks
 at <strong>k = {t2t_peak}</strong> ({t2t_agg[t2t_peak]:,} eGenes against
 {t2t_agg[35]:,} at 35). The surviving argument for 35 is a balance argument about gene
-biotypes rather than a maximum, and it has not been re-checked against the corrected
+biotypes rather than a maximum, and it has not been re-checked against the
 by-biotype curve. Choosing 35 costs each arm between 0.7 and 1.7 percent against its own
-optimum, so the stakes are modest — but the stated reason for the choice no longer holds,
+optimum, so the stakes are modest — but the stated reason for the choice does not hold,
 and that is recorded rather than papered over.</p>
 </div>
 
@@ -596,11 +606,11 @@ screening the leaders against count-matched windows, and calibrating with
 {HS["rotations"]:,} chromosome-wise circular rotations, leaves
 <strong>{HSA["windows"]} distinct windows</strong> in the top ten of either reference contrast.
 Every one carries at least {HS["minimum_matched_variants"]} exactly matched variants.
-<strong>{HSA["replicating"]} of the {HSA["windows"]}</strong> are recovered by both the linear
-and the graph-surjected workflow, which turns out to be the most informative thing about
+<strong>{HSA["replicating"]} of the {HSA["windows"]}</strong> show the same reference
+effect under both aligners, which turns out to be the most informative thing about
 them.</p>
 
-<h3>Replication across workflows is a paralog control</h3>
+<h3>Separating the reference effect from the aligner</h3>
 
 <p>The obvious worry about any reference-difference result is that it is a mapping artifact
 rather than a mapping improvement. Segmental duplications are where GRCh38 collapses paralogous
@@ -609,28 +619,36 @@ variant in nearly every donor. If T2T resolves that duplication, the genotype ch
 and so does the eQTL estimate — but so it would if the reads were simply being misplaced in a
 new way. Segdup enrichment alone cannot separate those two stories, because both predict it.</p>
 
-<p>The four-arm design already contains a discriminator. Because the graph arms use haplotype-
-sampled pangenomic alignment, they resolve paralogous copies that a linear aligner collapses. A
-window whose signal depends on which aligner was used is a window where read placement was
-deciding the answer. A window recovered by both is one where it was not.</p>
+<p>The factorial design can. The reference contrast is measurable twice, once under each
+aligner, and the two aligners treat paralogy differently: haplotype-sampled pangenomic
+alignment resolves copies that a linear aligner collapses. A reference effect present under
+both aligners is therefore a property of the reference. One that appears under a single
+aligner is a reference-by-aligner interaction — at that locus the two factors are entangled,
+and the reference difference cannot be read on its own.</p>
 
-{fig("hotspot-context", "Scatter plot of segmental-duplication fraction against mappability for 13 windows, with windows recovered by both workflows clustered at low segdup and high mappability", "The 13 top-ranked windows in sequence context. Those recovered by both workflows cluster at low segmental-duplication content and high mappability; those found by only one spread into duplicated, poorly mappable sequence. chr1:15.9 Mb is the exception that replicates despite high duplication content.")}
+<p>This is not a replication argument, and it should not be mistaken for one. The four arms
+are not four attempts at the same experiment. The reference and the aligner <em>are</em> the
+experiment, and there is no expectation that they agree; the question is only which of the
+two a given difference can be attributed to.</p>
+
+{fig("hotspot-context", "Scatter plot of segmental-duplication fraction against mappability for 13 windows, with windows whose reference effect holds under both aligners clustered at low segdup and high mappability", "The 13 top-ranked windows in sequence context. Those whose reference effect holds under both aligners cluster at low segmental-duplication content and high mappability; those confined to one aligner spread into duplicated, poorly mappable sequence. chr1:15.9 Mb is the exception that holds under both despite high duplication content.")}
 
 {t_hs_context}
 
-<p>The split runs the way the artifact hypothesis predicts it should if the artifact is
-confined to the non-replicating group. Windows recovered by both workflows have a median
+<p>The split runs the way it would if entanglement with the aligner were confined to hard
+sequence. Windows whose reference effect holds under both aligners have a median
 segmental-duplication fraction of {SPLIT["replicating"]["segdup_bp_fraction"]:.3f} and median
-mappability {SPLIT["replicating"]["mappability_bp_fraction"]:.3f}; those found by one workflow
-only sit at {SPLIT["single_workflow"]["segdup_bp_fraction"]:.3f} and
-{SPLIT["single_workflow"]["mappability_bp_fraction"]:.3f}. The aligner axis is behaving as a
-filter on hard sequence, and the {N_REP} windows that survive it are largely ordinary sequence
-where paralog collapse is not an available explanation.</p>
+mappability {SPLIT["replicating"]["mappability_bp_fraction"]:.3f}; those confined to one
+aligner sit at {SPLIT["single_workflow"]["segdup_bp_fraction"]:.3f} and
+{SPLIT["single_workflow"]["mappability_bp_fraction"]:.3f}. The interaction with the aligner
+is concentrated exactly where read placement is contestable, and the {N_BOTH}
+aligner-independent windows are largely ordinary sequence where paralog collapse is not an
+available explanation.</p>
 
 <p>This is a description of {HSA["windows"]} windows, not a test, and it should not be read as
 one — a two-sided rank-sum comparison of the duplication fractions returns
 p = {RANKSUM["segdup_bp_fraction"]:.2f}. One window, {mb(SEGDUP_EXCEPTION["interval"])},
-replicates across workflows while sitting at
+holds under both aligners while sitting at
 {SEGDUP_EXCEPTION["segdup_bp_fraction"]:.2f} duplication content, so the rule is a tendency
 rather than a partition.</p>
 
@@ -666,15 +684,108 @@ The {GO_SIG_CONTRAST} set returns {len(GO_SIG)} terms, every one of them taste-r
 copy-number-variable gene family. A negative control behaving exactly as a negative control
 should.</p>
 
+<h3>How far does this extend, and is any of it beyond chance?</h3>
+
+<p>The obvious next question is not how the top ten rank but how many windows anywhere in the
+genome exceed what chance would produce. That test was run on all four contrasts. It uses the
+same chromosome-wise circular rotation, except that the quantity recorded on each rotation is
+the largest window mean <em>anywhere in the genome</em>, so that its upper quantile is a
+family-wise threshold rather than a per-window one. Across {GW["tests"]:,} window tests and
+{GW["rotations"]:,} rotations, the number of windows that exceed it is
+<strong>{GW["significant"]}</strong>.</p>
+
+{t_gw}
+
+<p>The reason sits in the middle two columns, and it is a property of the test rather than of
+the data. A circular shift slides the score vector along the chromosome; it does not remove the
+cluster of large differences, it relocates it. Whichever window lands under that cluster after
+the shift inherits its magnitude, so the largest window mean under rotation comes back nearly
+equal to the largest one observed — at best a ratio of {gw_ratio_hi:.2f} across the four
+contrasts, and {gw_ratio_ref:.2f} in the contrast that matters most. A shift null therefore asks whether a
+cluster's <em>position</em> is unusual, and the answer to that is no. It cannot be made to ask
+whether the cluster's <em>magnitude</em> is unusual, which is the question worth asking.</p>
+
+<p>A shift null is not the only option, though, and the second one works. Every window already
+carries a count-matched robust z: its mean |Δ Z| minus the median across windows holding a
+comparable number of variants, divided by that stratum's robust spread. The statistic is
+centred on zero with unit spread by construction, so a normal null predicts a fixed rate in the
+upper tail, and the amount by which the observed rate exceeds it estimates how much of the
+flagged set is noise. Holding that estimate at five percent puts the cut at z between
+{cut_lo:.2f} and {cut_hi:.2f} and leaves <strong>{exc_lo:,} to {exc_hi:,} windows per
+contrast</strong> discordant beyond chance.</p>
+
+{t_exc}
+
+<p>At the more permissive z &gt; 1.96 the same tail yields {n196_lo:,} to {n196_hi:,} windows,
+but around a quarter of them ({fdr196_lo:.0%} to {fdr196_hi:.0%}) are expected to be noise,
+which is why the operating point is set by the error rate rather than by the sigma. Either way
+the answer to the original question is that regional discordance is not a matter of a handful
+of loci. It involves something on the order of five to seven percent of the testable genome.</p>
+
+<p>That scale also settles the aligner question the thirteen windows could only gesture at. Of
+the {AGREE["union"]:,} windows that either reference contrast flags,
+<strong>{AGREE["flagged_under_both_aligners"]["n"]:,}</strong> are flagged under both aligners
+and only {AGREE["flagged_under_one_aligner"]["n"]:,} under one — an overlap of
+{AGREE["jaccard"]:.2f}. The reference effect is overwhelmingly a property of the reference and
+not of the alignment method. The aligner-specific minority behaves exactly as the small sample
+suggested it would: those windows carry more duplicated sequence
+(p = {sci(AGREE["rank_sum_p"]["segdup_bp_fraction"], 1)}) and lower mappability
+(p = {sci(AGREE["rank_sum_p"]["mappability_bp_fraction"], 1)}) than the windows both aligners
+agree on. At seven against six that comparison was underpowered; at
+{AGREE["flagged_under_both_aligners"]["n"]:,} against
+{AGREE["flagged_under_one_aligner"]["n"]:,} it is not.</p>
+
+<h3>Which direction, and does it matter where?</h3>
+
+<p>Reducing a window to |Δ Z| discards the difference between a reference that recovers an
+association and one that loses it. Two signed statistics separate them: the change in
+association <em>strength</em>, |z| on T2T minus |z| on GRCh38, and the signed movement of the
+effect itself, z minus z with both arms oriented to the same alternate allele. Each tail is cut
+independently, at the same five percent.</p>
+
+{t_dir}
+
+<p>Strength is close to balanced — {DSTR["up"]["flagged"]:,} windows strengthen on T2T against
+{DSTR["down"]["flagged"]:,} that weaken. The signed effect is not: {DSGN["up"]["flagged"]:,}
+move up against {DSGN["down"]["flagged"]:,} that move down, and both reference contrasts show
+the same roughly two-to-one skew.</p>
+
+{fig("direction-context", "Three box plots comparing duplication, repeat content and mappability for windows where associations strengthen on T2T, weaken on T2T, and the rest of the genome", "Sequence context of discordant windows by direction. Boxes span the interquartile range and whiskers the 5th to 95th percentile. The strengthening and weakening distributions sit on top of each other; both differ from the rest of the genome, and for duplication that difference is entirely in the upper tail.")}
+
+<p>The sequence context is the part worth pausing on, and it needs the distributions rather
+than their averages. These fractions are heavily zero-inflated: median duplication content is
+zero in the discordant windows just as it is across the rest of the genome, so an average
+would suggest a shift that is not there. The difference lives in the tail. The 95th percentile
+of duplication content is {dup_q95_up:.2f} among windows where the association strengthens on
+T2T and {dup_q95_dn:.2f} among those where it weakens, against {dup_q95_rest:.2f} elsewhere;
+the 5th percentile of mappability is {map_q05_up:.2f} and {map_q05_dn:.2f} against
+{map_q05_rest:.2f}.</p>
+
+<p>The two directions, though, are not distinguishable from one another at all — on
+duplication (p = {DSTR["up_vs_down_rank_sum_p"]["segdup_bp_fraction"]:.2f}), on mappability
+(p = {DSTR["up_vs_down_rank_sum_p"]["mappability_bp_fraction"]:.2f}) or on repeat content
+(p = {DSTR["up_vs_down_rank_sum_p"]["repeat_bp_fraction"]:.2f}). Difficult sequence predicts
+<em>that</em> a region will disagree between the two references. It does not predict
+<em>which way</em>, which puts the direction down to something locus-specific rather than to
+how hard the region is to align.</p>
+
+<p>The one exception is the signed effect statistic, where the down-shifted windows are
+modestly more duplicated than the up-shifted ones
+(p = {sci(DSGN["up_vs_down_rank_sum_p"]["segdup_bp_fraction"], 1)}) and more repetitive
+(p = {DSGN["up_vs_down_rank_sum_p"]["repeat_bp_fraction"]:.2f}). Together with the
+two-to-one count asymmetry, that reads as a systematic downward shift of the test statistic in
+duplicated sequence on T2T rather than as a regulatory difference — and it points back at
+genotype quality in exactly the regions where the copy-number question below is still
+open.</p>
+
 <div class="callout">
-<p><strong>What these p-values are and are not.</strong> The spatial statistic asks whether a
-window's score cluster is unusual for its own chromosome at its own exact variant count. It is
-<em>not</em> a paired test that two effect estimates differ. Two estimates computed from the
-same donors on two references are enormously correlated, and a naive paired test of them would
-be badly anti-conservative; the rotation null sidesteps that by asking a different and
-answerable question. The values are also candidate-screened rather than genome-wide adjusted,
-and the window size, the minimum-count gate and the tail definition were chosen for this
-follow-up rather than preregistered. Treat the ranking as a shortlist for investigation.</p>
+<p><strong>What these numbers are and are not.</strong> None of the window statistics on this
+page is a paired test that two effect estimates differ. Two estimates computed from the same
+donors on two references are enormously correlated, and a naive paired test of them would be
+badly anti-conservative. The window size, the minimum-count gate and the tail definition were
+chosen for this follow-up rather than preregistered, and the ranking is candidate-screened
+rather than genome-wide adjusted. Treat it as a shortlist for investigation, not as a
+result.</p>
 </div>
 
 <h2 id="interaction">Genotype×sex interaction, and why scale decides it</h2>
@@ -810,23 +921,29 @@ and agrees closely across both references and both aligners.</p>
 independently for each pair, which destroys linkage disequilibrium: the null's selected pairs
 spread across roughly 3,500 genes while the observed ones concentrate into about 210, so the
 comparison is approximate even though the pair counts are matched. A rigorous version would
-permute sex labels and refit, preserving LD; that has not been run on corrected data.
+permute sex labels and refit, preserving LD; that has not been run.
 Second, this must be counted per gene and never per variant-gene pair. In an earlier pass a
 single large LD block contributed the majority of significant pairs and was XY-stronger,
 which flipped the apparent direction entirely when counted by pair. Genes, not pairs.</p>
 
 <h2 id="standing">What is settled, and what is not</h2>
 
-<p>Settled, in the sense of resting on corrected data with a complete audit chain:</p>
+<p>Settled, in the sense of resting on the complete four-arm run tree:</p>
 
 <ul>
   <li>The four arms agree closely on cis-eQTL <em>yield</em>, but not on the surface beneath
       it. Reference choice perturbs effect estimates about {mag_ratio:.0f} times more than
       aligner choice does, and that disagreement is spatially concentrated rather than
       diffuse.</li>
-  <li>{HSA["replicating"]} of the {HSA["windows"]} top-ranked discordance windows are
-      recovered by both the linear and the graph-surjected workflow, and those sit in
-      ordinary sequence rather than in segmental duplications.</li>
+  <li>Between {exc_lo:,} and {exc_hi:,} windows per contrast — five to seven percent of the
+      testable genome — are discordant beyond chance at an estimated 5% false-discovery
+      proportion. Regional disagreement is not confined to a few loci.</li>
+  <li>{AGREE["flagged_under_both_aligners"]["n"]:,} of the {AGREE["union"]:,} windows a
+      reference contrast flags are flagged under both aligners. The reference effect is a
+      property of the reference, not of the alignment method.</li>
+  <li>Discordant windows are enriched for duplicated and unmappable sequence whichever way
+      the association moves, and the two directions are indistinguishable from each other.
+      Sequence difficulty predicts that a region disagrees, not which way it goes.</li>
   <li>Every permutation-selected lead in every arm replays against an independently computed
       {HS["nominal_rows"] / 1e6:.0f}-million-pair nominal surface, to
       {sci(HS["lead_bridge"]["max_abs_beta_error"], 0)} in effect size.</li>
@@ -841,7 +958,7 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
 <p>Not settled, and deliberately left open rather than resolved by assertion:</p>
 
 <ul>
-  <li><strong>k = 35.</strong> Its original justification is false on corrected data. The
+  <li><strong>k = 35.</strong> Its original justification does not survive the sweep. The
       choice stands only because every downstream map was built at it and the cost is
       under two percent.</li>
   <li><strong>The LD-preserving null.</strong> The direction-asymmetry verdict rests on a
@@ -849,14 +966,24 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       settle it.</li>
   <li><strong>The anti-conservative offset.</strong> var(z) above 1 is unexplained and
       systematic.</li>
+  <li><strong>How heavy the null tail really is.</strong> The false-discovery estimate
+      above assumes a normal tail, calibrated on the centre of the genome-wide
+      distribution. Linkage disequilibrium correlates neighbouring windows, so the true
+      null tail is heavier and every count quoted is a lower bound on the error rate.
+      A shift null cannot supply the correction, for the reason given above.</li>
+  <li><strong>Why the signed effect skews downward.</strong> Windows whose test statistic
+      moves down on T2T outnumber those that move up about two to one, and they carry more
+      duplicated sequence. That is a genotype-quality signature rather than a regulatory
+      one, and it is unexplained.</li>
   <li><strong>Copy number at the discordance windows.</strong> Haplotype-sampled pangenomic
       alignment addresses paralog collapse, but no amount of correct read placement makes a
       multi-copy locus diploid. Whether these are copy-number effects that a SNP dosage
       merely tags is untested. The joint-called genotypes retain the per-sample depth and
       allele-balance fields that would settle it.</li>
-  <li><strong>The {N_SNG} single-workflow windows.</strong> By construction these are the
-      ones where the aligner decided the answer, and they are the duplicated, poorly mappable
-      ones. They are reported here as aligner-sensitive, not as reference findings.</li>
+  <li><strong>The {N_ONE} windows confined to one aligner.</strong> These are
+      reference-by-aligner interactions, and they are the duplicated, poorly mappable ones.
+      They are reported as such rather than as reference findings, and which factor is
+      responsible at each is unresolved.</li>
   <li><strong>Fine-mapping.</strong> The per-stratum nominal scans are the natural input to
       multi-condition fine-mapping, which is in progress separately.</li>
 </ul>
@@ -882,9 +1009,12 @@ together with the gene, with slopes oriented to the T2T alternate allele and eac
 contributing once through its nearest-TSS jointly tested anchor. Windows are fixed,
 non-overlapping {HS["window_size_bp"] // 1000}-kb intervals in T2T coordinates. The spatial null
 is a chromosome-wise circular rotation of paired score tuples over the ordered eligible variants,
-at {HS["rotations"]:,} rotations after a count-matched screen.</p>
+at {HS["rotations"]:,} rotations after a count-matched screen. The family-wise version records
+the genome-wide maximum window mean on each of {GW["rotations"]:,} rotations and compares every
+window against the upper quantile of that maximum, over all {GW["tests"]:,} window tests in the
+four contrasts.</p>
 
-<p>Every figure and every table on this page is generated directly from the corrected run
+<p>Every figure and every table on this page is generated directly from the run
 tree by a single collection script, so no number here was transcribed by hand. Figures are
 rendered in both light and dark palettes from one code path; the palette was checked
 programmatically for colour-vision separation and contrast rather than by eye.</p>
@@ -895,9 +1025,8 @@ variant-gene pair, because linkage disequilibrium lets a single locus dominate a
 count and reverse its apparent direction.</p>
 
 <footer>
-  <p>BrainVar GRCh38-versus-T2T cis-eQTL analysis. All results shown are from the corrected
-  pipeline; the pre-correction outputs were deleted rather than retained, so nothing on this
-  page is derived from them.</p>
+  <p>BrainVar GRCh38-versus-T2T cis-eQTL analysis. Every figure and every table is
+  generated from the run tree by a single collection script.</p>
 </footer>
 
 </div>

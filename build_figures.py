@@ -98,35 +98,6 @@ def legend(ax, c, **kw):
     return lg
 
 
-# ---------------------------------------------------------------- figure 1
-def fig_missing_burden(c, mode):
-    raw = DATA["nan_whole_sample"]
-    arms = [a for a in CELLS if a in raw]
-    pct = [100 * raw[a]["source_variant_rows_with_nan"] / raw[a]["variants"] for a in arms]
-    fig, ax = plt.subplots(figsize=(8.2, 3.6))
-    y = range(len(arms))
-    ax.barh(list(y), pct, height=0.58, color=c["s1"], zorder=3)
-    for i, (p, a) in enumerate(zip(pct, arms)):
-        n = raw[a]["source_variant_rows_with_nan"]
-        ax.annotate(f"{p:.1f}%   ({n:,} variants)", xy=(p, i), xytext=(8, 0),
-                    textcoords="offset points", va="center", ha="left",
-                    color=c["ink2"], fontsize=9.5)
-    ax.set_yticks(list(y), [LABEL[a] for a in arms])
-    ax.invert_yaxis()
-    ax.set_xlim(0, max(pct) * 1.45)
-    ax.set_xlabel("share of cis-tested variants carrying at least one missing call",
-                  color=c["ink2"], fontsize=9.5)
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
-    ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
-    ax.yaxis.grid(False)
-    ax.set_axisbelow(True)
-    frame(ax, c, ygrid=False)
-    title(ax, c, "A quarter of variants carried a missing call",
-          "Each was silently dropped before the fix. Afterwards, NaNs reaching TensorQTL: "
-          "zero, in every analysis point.")
-    finish(fig, ax, c, f"missing-burden.{mode}.svg")
-
-
 # ---------------------------------------------------------------- figure 2
 def fig_pc_sweep(c, mode):
     curve = DATA["expression_pc_curve"]
@@ -151,7 +122,7 @@ def fig_pc_sweep(c, mode):
     ax.set_ylabel("eGenes", color=c["ink2"], fontsize=9.5)
     ax.yaxis.set_major_formatter(THOUSANDS)
     frame(ax, c)
-    title(ax, c, "Expression-PC sweep on corrected genotypes",
+    title(ax, c, "Expression-PC sweep",
           "Three arms peak at 45 and linear · T2T is still rising at 50, so 35 is not an "
           "argmax.")
     legend(ax, c, loc="lower right", ncol=2)
@@ -409,9 +380,11 @@ def fig_hotspot_context(c, mode):
     wins = hs["windows"]
     split = hs["context_split"]
     fig, ax = plt.subplots(figsize=(8.2, 4.8))
+    # The upstream column counts how many workflow realizations rank the window; on the
+    # page that is read as whether the reference effect survives changing the aligner.
     groups = [
-        (2, "in both workflows", c["s1"], "o", split["replicating"]),
-        (1, "one workflow only", c["s2"], "s", split["single_workflow"]),
+        (2, "reference effect under both aligners", c["s1"], "o", split["replicating"]),
+        (1, "under one aligner only", c["s2"], "s", split["single_workflow"]),
     ]
     for repl, name, colour, marker, med in groups:
         pts = [w for w in wins if w["replication"] == repl]
@@ -447,15 +420,65 @@ def fig_hotspot_context(c, mode):
     ax.set_ylabel("100-mer mappability fraction", color=c["ink2"], fontsize=9.5)
     ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
     frame(ax, c)
-    title(ax, c, "Windows that need a particular aligner are the hard-sequence ones",
-          "Each point is one of the 13 top-ranked reference-discordance windows. Those "
-          "recovered by both the linear and the graph workflow sit at low segmental-"
-          "duplication content and high mappability.")
+    title(ax, c, "Reference effects entangled with the aligner are the hard-sequence ones",
+          "Each point is one of the 13 top-ranked reference-discordance windows. Those whose "
+          "reference effect holds under both aligners sit at low segmental-duplication "
+          "content and high mappability.")
     legend(ax, c, loc="lower left")
     finish(fig, ax, c, f"hotspot-context.{mode}.svg")
 
 
-FIGURES = [fig_missing_burden, fig_pc_sweep, fig_four_arm, fig_stratified,
+# ---------------------------------------------------------------- figure 11
+DIR_CONTRAST = "t2t_minus_grch38_linear"
+DIR_STAT = "delta_strength"
+DIR_PANELS = [("segdup_bp_fraction", "segmental duplication"),
+              ("repeat_bp_fraction", "repeat content"),
+              ("mappability_bp_fraction", "100-mer mappability")]
+
+
+def fig_direction_context(c, mode):
+    """Distributions, not means.
+
+    The claim this panel supports is that two groups are the *same*, and a bar of means
+    cannot show that.  These window fractions are also strongly zero-inflated -- median
+    duplication content is zero in every group -- so a mean summarises them badly and the
+    whole difference against the rest of the genome lives in the upper tail.
+    """
+    r = DATA["hotspots"]["directional"]["results"][DIR_CONTRAST][DIR_STAT]
+    groups = [("up", "stronger\non T2T", c["s1"]),
+              ("down", "weaker\non T2T", c["s2"]),
+              ("neither", "rest of\ngenome", c["muted"])]
+    fig, axes = plt.subplots(1, len(DIR_PANELS), figsize=(8.6, 4.1))
+    for ax, (key, label) in zip(axes, DIR_PANELS):
+        for i, (side, _, colour) in enumerate(groups):
+            q = r[side][f"{key}_quantiles"]
+            bx = ax.bxp([{"med": q["0.5"], "q1": q["0.25"], "q3": q["0.75"],
+                          "whislo": q["0.05"], "whishi": q["0.95"], "fliers": []}],
+                        positions=[i], widths=0.56, patch_artist=True,
+                        showfliers=False, zorder=3)
+            for box in bx["boxes"]:
+                box.set(facecolor=colour, edgecolor=colour, linewidth=0)
+            for part in ("whiskers", "caps"):
+                for art in bx[part]:
+                    art.set(color=colour, linewidth=1.3)
+            for med in bx["medians"]:
+                med.set(color=c["surface"], linewidth=1.6)
+        ax.set_xticks(range(len(groups)), [g[1] for g in groups])
+        ax.set_title(label, color=c["ink2"], fontsize=10, loc="left", pad=6)
+        frame(ax, c)
+    axes[0].set_ylabel("base-pair fraction of the window", color=c["ink2"], fontsize=9.5)
+    fig.text(0.045, 1.15, "Direction is not written in the sequence",
+             color=c["ink"], fontsize=12.5, fontweight="600", ha="left", va="top")
+    fig.text(0.045, 1.075,
+             f'Box is the interquartile range, whiskers the 5th to 95th percentile. '
+             f'n = {r["up"]["n"]:,} stronger, {r["down"]["n"]:,} weaker, '
+             f'{r["neither"]["n"]:,} rest.',
+             color=c["ink2"], fontsize=9.5, ha="left", va="top")
+    fig.subplots_adjust(wspace=0.34)
+    finish(fig, list(axes), c, f"direction-context.{mode}.svg")
+
+
+FIGURES = [fig_pc_sweep, fig_four_arm, fig_stratified, fig_direction_context,
            fig_interaction, fig_calibration, fig_direction, fig_contrast_pairs,
            fig_reference_vs_aligner, fig_hotspot_context]
 
