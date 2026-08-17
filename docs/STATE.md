@@ -5,20 +5,15 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Separate the chrX effect by sex.** Do this before anything else. graph-vs-linear on T2T moves 22.3% of
-chrX genes (OR 4.47, p = 4×10⁻³⁰) and no other contrast does anything on chrX. It is
-unexplained and suspect. XY donors are hemizygous, the T2T build uses a masked Y, and X
-alignment in males is a different problem than in females — so this may be a ploidy-handling
-artifact rather than a result. Stratified XX and XY maps already exist at
-`runs/sex_stratified_maps_v4_nanfix_20260810` and
-`runs/sex_stratified_nominal_v4_nanfix_20260810`.
+**Decompose Δz into Δβ and Δse**, together with **map representation-dependence by
+allele-frequency concordance**. Both are cheap, both read from the paired tables that already
+exist in `runs/noninteraction_int_hotspots_100kb_20260812/paired_anchor_variants`, and together
+they establish what *kind* of difference each axis produces: a shifted β means the arms estimate
+a different underlying effect, a shifted se means the same effect measured with different
+precision, and an AF discrepancy proves the site is representation-dependent without needing any
+truth set.
 
-If it is an artifact, a headline currently on the page has to come down.
-
-Then **decompose Δz into Δβ and Δse** together with **map representation-dependence by
-allele-frequency concordance** — both cheap, both mechanistic, and together they establish what
-kind of difference each axis produces. Then **characterise genes testable in one reference
-only**, then **add the variant-caller axis**.
+Then **characterise genes testable in one reference only**, then **add the variant-caller axis**.
 
 ## Complete
 
@@ -30,10 +25,13 @@ only**, then **add the variant-caller axis**.
 | Gene classes | Method-sensitive genes enriched for ClinGen recurrent-CNV regions (OR 2.9–9.1), human accelerated regions (OR 1.7–1.9), segmental duplications (OR 1.7–2.5) — all four contrasts, 12/12 positive. MHC OR 2.5–3.8. | `discordant_gene_classes_20260816` |
 | Gene classes | Aligner effect is only ~50% portable across references (gene Jaccard 0.495); reference effect is 92% portable across aligners (0.919). | `gene_discordance_disease_20260816` |
 | Calibration | **Negative, and worth keeping:** genome-wide family-wise rotation test returns 0 of 106,342 window tests. A circular shift relocates the signal rather than removing it, so the null max ≈ observed max (ratio 1.02). A shift null tests *position*, not *magnitude*, and cannot certify these windows. | `genomewide_window_discordance_fwer_20260816` |
+| chrX by sex | The chrX aligner effect is **XX-specific**: graph−linear·T2T moves 34.6% of chrX genes in XX against 6.8% autosomal (OR 7.27, p = 3.8×10⁻⁸⁵), while the other seven contrast-by-stratum cells show nothing (OR 0.16–0.91). Not power — XY has 133 donors to XX's 92. chrX dosage encoding is identical across all four arms, so differential ploidy handling is excluded. | `chrx_discordance_by_sex_20260816` |
 
 ## Known risks
 
-- **chrX result may not survive *Separate the chrX effect by sex*.** See next action.
+- **chrX must be reported as XX-specific.** The whole-cohort 22.3% figure is a
+  dilution of a 34.6% XX-specific effect; stating it as a property of chrX rather
+  than of chrX-in-XX would be wrong.
 - **Enrichments not yet controlled for expression level.** Duplicated-region genes are often
   lowly expressed; some of the *Characterise discordant regions and gene classes* enrichment could be a power artifact. Open sub-task on *Characterise discordant regions and gene classes*,
   resolved by *Describe background-noise properties per arm*.
@@ -60,8 +58,8 @@ reference-by-aligner reading; the genome-wide FDR and directional sections with 
 
 **Not yet on the page**, though the analysis is complete and in the run tree: the concordance
 baseline, the gene-class enrichments, the MHC result, the chrX result, and the aligner-versus-
-reference portability asymmetry. These are held back until the framing rewrite below, and the
-chrX result is held until *Separate the chrX effect by sex* resolves.
+reference portability asymmetry. These are held back until the framing rewrite below. The chrX
+result is now resolved and must be written as XX-specific.
 
 **Framing the page must adopt** (agreed with J.L., 2026-08-16):
 

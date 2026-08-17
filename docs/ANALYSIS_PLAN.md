@@ -211,7 +211,7 @@ follow-up candidates would change if you switched method.* That is the number a 
 actually needs. *Cost: low.*
 
 ### Who is affected
-**Separate the chrX effect by sex.** `[IN PROGRESS]` Run root
+**Separate the chrX effect by sex.** `[COMPLETE]` Run root
 `runs/chrx_discordance_by_sex_20260816`; script
 `scratch/analyze_chrx_discordance_by_sex_20260816.py`, dosage audit
 `scratch/audit_chrx_dosage_coding_20260816.py`.
@@ -221,12 +221,29 @@ identically in all four arms — XY het-like dosage share 1.7–2.5%, XX 28.9%, 
 variation negligible. The two arms of every contrast therefore encode chrX the same way, so a
 differential-ploidy-encoding artifact is excluded.
 
-*Early result, two autosomes as baseline, pending the full run:* the effect is **XX-driven,
-not XY-driven** — the opposite of the ploidy hypothesis. graph−linear·T2T moves 15.8% of chrX
-genes in XX against 7.6% autosomal (OR 2.29, p = 2.4×10⁻⁹), while in XY chrX is *depleted*
-(3.8% vs 9.9%, OR 0.36). Not a power artifact: XY has 133 donors against XX's 92. Mechanistic
-reading to be confirmed — the graph resolves haplotype diversity, and a hemizygous X carries
-one haplotype, so there is nothing for it to resolve.
+*Result, full autosomal baseline, all 23 contigs:* the effect is **XX-driven, not XY-driven** —
+the opposite of the ploidy hypothesis, and stronger than the whole-cohort figure suggested.
+
+| Contrast | XX chrX vs autosomal | XY chrX vs autosomal |
+|---|---|---|
+| T2T − GRCh38 · linear | 3.6% vs 5.0% (OR 0.71) | 5.3% vs 5.8% (OR 0.91) |
+| T2T − GRCh38 · graph | 3.6% vs 5.0% (OR 0.72) | 5.0% vs 5.8% (OR 0.84) |
+| graph − linear · GRCh38 | 1.3% vs 6.8% (OR 0.18) | 1.1% vs 6.7% (OR 0.16) |
+| **graph − linear · T2T** | **34.6% vs 6.8% (OR 7.27, p = 3.8×10⁻⁸⁵)** | 1.8% vs 7.0% (OR 0.24) |
+
+Seven of eight cells show nothing on chrX. The eighth moves **more than a third of chrX genes**.
+It is not a power artifact — XY has 133 donors against XX's 92, so the null cell has *more*
+power than the positive one. In XY, chrX is if anything *depleted* relative to autosomes.
+
+*Mechanism, consistent with all four rows:* pangenomic alignment resolves haplotype diversity.
+A hemizygous X carries one haplotype and offers nothing to resolve, which is why XY shows
+nothing. GRCh38's X is itself poorly resolved, which is why the graph cannot exploit two
+haplotypes there either. Only T2T's complete X plus two X haplotypes gives the graph both the
+material and the opportunity — a three-way reference × aligner × sex interaction.
+
+*Consequence for reporting:* the whole-cohort figure of 22.3% is a **dilution** of a stronger
+XX-specific effect. Any chrX analysis in a mixed-sex cohort should stratify by sex, and the page
+must state the result as XX-specific rather than as a property of chrX.
 
 Original statement of the task: graph-vs-linear on T2T moves 22.3% of
 chrX genes (OR 4.47, p = 4×10⁻³⁰) and no other contrast does. This is unexpected and should be
