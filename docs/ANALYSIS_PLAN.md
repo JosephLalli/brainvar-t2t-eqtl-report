@@ -420,7 +420,7 @@ is nameable in the positive arm's own variant space. A lead with no counterpart 
 excluded — and those are precisely the cases where the two arms differ most, so the independent
 share is understated rather than inflated.
 
-**Count credible sets per gene.** `[IN PROGRESS — SuSiE running on the current arms]`
+**Count credible sets per gene.** `[COMPLETE]`
 Run root `runs/susie_finemapping_v4_k35_20260817`; script
 `scratch/run_susie_finemapping_v4_k35_20260817.py`.
 
@@ -448,9 +448,41 @@ Parameters match the previous run: L = 10, coverage 0.95, minimum absolute corre
 100 iterations, tolerance 1e-3, in-sample MAF 0.05, one-megabase window. Only genes the same
 arm called as eGenes are fine-mapped — roughly three thousand per arm.
 
-*Smoke test:* 15 genes on chr22 in 7 seconds, yielding PIP and credible-set identifiers per
-variant, with 2 of 13 genes carrying more than one credible set. Full job estimated at about
-two hours across two GPUs.
+*The run.* 92 of 92 shards, **12,189 gene fine-mappings** across the four arms, 40 GPU-minutes
+on two devices. Run roots `runs/susie_finemapping_v4_k35_20260817` and
+`runs/credible_set_comparison_20260817`.
+
+| Arm | Genes with credible sets | Sets per gene | Genes with more than one | Median set size |
+|---|---|---|---|---|
+| linear · GRCh38 | 2,602 | 1.113 | 283 | 7 |
+| graph · GRCh38 | 2,581 | 1.110 | 277 | 7 |
+| linear · T2T | 2,562 | 1.121 | 296 | 7 |
+| graph · T2T | 2,540 | 1.122 | 300 | 7 |
+
+*The comparison*, restricted to genes fine-mapped in both arms and with variants compared on
+normalised identity:
+
+| Contrast | Genes in both | Same number of sets | Sets overlap | Median Jaccard | **Same top variant** |
+|---|---|---|---|---|---|
+| T2T − GRCh38 · linear | 2,099 | 92.3% | 96.1% | 0.82 | **60.7%** |
+| T2T − GRCh38 · graph | 2,088 | 93.2% | 96.0% | 0.82 | **60.8%** |
+| graph − linear · GRCh38 | 2,484 | 97.2% | 98.1% | 0.97 | 78.5% |
+| graph − linear · T2T | 2,432 | 96.5% | 97.5% | 0.97 | 77.5% |
+
+**Fine-mapping survives the method change at the level it actually reports.** Credible sets
+overlap for 96–98% of genes and the median Jaccard is 0.82 under a reference swap. But the
+single highest-posterior variant *within* those overlapping sets differs **four times in ten**
+under a reference swap.
+
+That is the same phenomenon the lead-variant and LD stages found, seen through the instrument
+that matters most: the arms agree about the *region in contention* and disagree about which
+member of it to name. The practical reading is that a credible set is a robust thing to report
+across method changes and a single "causal variant" is not.
+
+*Bounds.* Credible-set counts are conditional on each arm's own eGene selection and are only
+comparable on the shared gene set used here. Overlap is computed on variants placeable in the
+common frame, which is 99.2–100% of them, so a set containing reference-unique variants is
+compared on the remainder and disagreement is understated.
 
 **Test whether GWAS colocalization changes.** `[NOT STARTED]` The ideal endpoint: does a coloc call appear or
 disappear between arms? GWAS rsIDs in T2T coordinates are available at

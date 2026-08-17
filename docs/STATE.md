@@ -5,14 +5,10 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**SuSiE fine-mapping is running** on both GPUs — GRCh38 arms on device 0, T2T arms on device 1,
-logs at `logs/susie_gpu{0,1}_20260817.log`, run root
-`runs/susie_finemapping_v4_k35_20260817`. Shards resume individually, so an interruption is
-safe: relaunch the same command and completed shards are skipped.
-
-When it finishes: count credible sets per gene per arm, compare credible-set membership across
-arms conditional on a shared gene set, and fold the result into the page. That also unblocks
-GWAS colocalization, which needs a trait source in addition.
+**Test whether GWAS colocalization changes.** Credible sets now exist for the current arms, so
+the remaining dependency is a trait source: the local GWAS VCF carries dbSNP and ClinVar
+annotation but no trait field, so trait-to-variant mapping has to come from elsewhere before
+colocalisation can be scored. That is a data-acquisition decision rather than an analysis.
 
 ### After that
 
@@ -48,6 +44,8 @@ GWAS colocalization, which needs a trait source in addition.
 | Three-axis yardstick | **A reference swap is a smaller perturbation than an aligner swap, and both are under half a caller swap.** Sites differing by more than 0.01 in allele frequency: reference 2.34–2.61%, aligner 2.56–2.91%, caller 5.84–6.50% (2.26× the aligner). Measured on identical donors, contigs and stage. Cross-reference contrasts are restricted to variants both references can represent, which is the point rather than a limitation. | `three_axis_af_yardstick_20260816` |
 | Newly accessible signal | **About one gene in nine (11.2%) has its best association at a variant GRCh38 cannot represent**; 4.8% for an aligner swap. With the yardstick and the gene universes this establishes that the reference's distinctive effect is on **access, not measurement** — where it can see the same variant it sees it the same way. | `newly_accessible_signal_20260816` |
 | Background noise per arm | **No arm is measurably less noisy.** Median standard error at matched allele frequency is identical to the fourth decimal across all four arms; the largest ratio is T2T carrying 0.8% *larger* errors than GRCh38 in duplicated sequence. Confirms and extends the decomposition: these methods do not buy precision, anywhere. | `background_noise_by_arm_20260816` |
+| SuSiE fine-mapping | 12,189 gene fine-mappings across four arms in 40 GPU-minutes; 2,540–2,602 genes with credible sets per arm, 1.11–1.12 sets per gene, median set size 7. | `susie_finemapping_v4_k35_20260817` |
+| Credible-set comparison | **Fine-mapping survives at the level it reports.** Sets overlap for 96–98% of shared genes (median Jaccard 0.82 reference, 0.97 aligner), but the top variant within them differs **39%** of the time under a reference swap and 22% under an aligner swap. A credible set is robust to method choice; a named causal variant is not. | `credible_set_comparison_20260817` |
 
 ## Known risks
 

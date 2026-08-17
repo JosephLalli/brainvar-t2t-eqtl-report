@@ -418,6 +418,30 @@ t_access = table(
          "lower bound. A gene's lead being exclusive does not mean the other arm finds nothing "
          "for that gene — only that it cannot find that variant.")
 
+CSET = DATA["credible_sets"]["by_contrast"]
+cs_top_ref = min(CSET[k]["share_same_top_variant"] for k in REF_KEYS)
+cs_top_wf = min(CSET[k]["share_same_top_variant"] for k in WF_KEYS)
+cs_ovl_ref = min(CSET[k]["share_sets_overlapping"] for k in REF_KEYS)
+cs_ovl_wf = min(CSET[k]["share_sets_overlapping"] for k in WF_KEYS)
+
+t_credible = table(
+    ["Contrast", "Genes fine-mapped in both", "Same number of sets", "Sets overlap",
+     "Median Jaccard", "Same top variant"],
+    [[CONTRAST_LABEL[k], f'{CSET[k]["genes_finemapped_in_both"]:,}',
+      f'{CSET[k]["share_same_number"]:.1%}',
+      f'<strong>{CSET[k]["share_sets_overlapping"]:.1%}</strong>',
+      f'{CSET[k]["median_jaccard"]:.2f}',
+      f'<strong>{CSET[k]["share_same_top_variant"]:.1%}</strong>']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note=f'SuSiE fine-mapping of the current arms — '
+         f'{DATA["credible_sets"]["gene_finemappings"]:,} gene fine-mappings in '
+         f'{DATA["credible_sets"]["gpu_minutes"]:.0f} GPU-minutes. Restricted to genes '
+         f'fine-mapped in both arms, with variants compared on normalised identity. Overlap '
+         f'is computed on variants placeable in the common frame, so a set containing '
+         f'reference-unique variants is compared on the remainder and disagreement is '
+         f'understated.')
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -874,11 +898,40 @@ changes are the same signal wearing a different label.</strong> Only about
 an aligner swap about {net_wf:.0%}. That is a far weaker claim than four-in-ten, and it is the
 correct one.</p>
 
-<p>All four numbers are true and they belong together. The map as a whole is stable; the
+<p>There is one more level, and it is the one downstream analysis actually consumes. A lead
+variant is a single number; a <em>credible set</em> is the statement "the causal variant is one
+of these", and that is what fine-mapping reports and what colocalisation takes as input. All
+four arms were fine-mapped with SuSiE — {DATA["credible_sets"]["gene_finemappings"]:,} gene
+fine-mappings — so the sets can be compared directly.</p>
+
+{t_credible}
+
+<p><strong>Fine-mapping survives the method change at the level it reports.</strong> For
+{cs_ovl_ref:.0%} to {cs_ovl_wf:.0%} of genes the two arms' credible sets overlap, and the
+median Jaccard between them is
+{min(CSET[k]["median_jaccard"] for k in REF_KEYS):.2f} under a reference swap and
+{min(CSET[k]["median_jaccard"] for k in WF_KEYS):.2f} under an aligner swap. The arms also
+agree on <em>how many</em> independent signals a gene has more than nine times in ten.</p>
+
+<p>But the single highest-posterior variant inside those overlapping sets agrees only
+{cs_top_ref:.0%} of the time under a reference swap, and {cs_top_wf:.0%} under an aligner one.
+That is the lead-variant result again, seen through the instrument that matters most: the two
+arms agree about the <em>region in contention</em> and disagree about which member of it to
+name.</p>
+
+<div class="callout">
+<p><strong>The practical reading.</strong> A credible set is a robust thing to report across a
+method change. A single named causal variant is not. Anything downstream that consumes a set —
+colocalisation, or a follow-up experiment targeting a locus — inherits a conclusion that
+survives the change. Anything that consumes the top variant alone inherits one that changes
+about four times in ten between references.</p>
+</div>
+
+<p>All five numbers are true and they belong together. The map as a whole is stable; the
 shortlist drawn off the top of it is less so; the nominated variant within a shared hit changes
-often but usually cosmetically; and a small, real remainder is a different hypothesis
-altogether. Which raises the question the rest of this addresses: what distinguishes the part
-that moves.</p>
+often but usually cosmetically; a small real remainder is a different hypothesis altogether;
+and the credible set that fine-mapping reports mostly survives. Which raises the question the
+rest of this addresses: what distinguishes the part that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -1592,6 +1645,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {1 - lead_ref_same_lo:.0%} of shared eGenes, but {ld_same_ref:.0%} of those pairs are in
       high linkage disequilibrium. Only about {net_ref:.0%} of shared eGenes end up with a
       genuinely different causal candidate.</li>
+  <li><strong>Fine-mapping survives at the level it reports.</strong> Credible sets overlap
+      for {cs_ovl_ref:.0%} to {cs_ovl_wf:.0%} of shared genes, but the top variant inside them
+      agrees only {cs_top_ref:.0%} of the time under a reference swap. A credible set is robust
+      to the method change; a named causal variant is not.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       {gd_or_lo:.1f} to {gd_or_hi:.1f} times enriched for recurrent genomic-disorder regions,
       {har_or_lo:.1f} to {har_or_hi:.1f} times for human accelerated regions, and consistently
