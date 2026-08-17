@@ -211,7 +211,24 @@ follow-up candidates would change if you switched method.* That is the number a 
 actually needs. *Cost: low.*
 
 ### Who is affected
-**Separate the chrX effect by sex.** `[NOT STARTED — high priority]` graph-vs-linear on T2T moves 22.3% of
+**Separate the chrX effect by sex.** `[IN PROGRESS]` Run root
+`runs/chrx_discordance_by_sex_20260816`; script
+`scratch/analyze_chrx_discordance_by_sex_20260816.py`, dosage audit
+`scratch/audit_chrx_dosage_coding_20260816.py`.
+
+*Dosage audit complete and it clears the first hurdle:* chrX hemizygous genotypes are encoded
+identically in all four arms — XY het-like dosage share 1.7–2.5%, XX 28.9%, arm-to-arm
+variation negligible. The two arms of every contrast therefore encode chrX the same way, so a
+differential-ploidy-encoding artifact is excluded.
+
+*Early result, two autosomes as baseline, pending the full run:* the effect is **XX-driven,
+not XY-driven** — the opposite of the ploidy hypothesis. graph−linear·T2T moves 15.8% of chrX
+genes in XX against 7.6% autosomal (OR 2.29, p = 2.4×10⁻⁹), while in XY chrX is *depleted*
+(3.8% vs 9.9%, OR 0.36). Not a power artifact: XY has 133 donors against XX's 92. Mechanistic
+reading to be confirmed — the graph resolves haplotype diversity, and a hemizygous X carries
+one haplotype, so there is nothing for it to resolve.
+
+Original statement of the task: graph-vs-linear on T2T moves 22.3% of
 chrX genes (OR 4.47, p = 4×10⁻³⁰) and no other contrast does. This is unexpected and should be
 treated as suspect until explained. XY donors are hemizygous, T2T uses a masked-Y assembly, and
 X alignment in males is a different problem than in females. Stratified XX and XY maps already
