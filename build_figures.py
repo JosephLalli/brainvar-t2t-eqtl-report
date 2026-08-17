@@ -621,10 +621,58 @@ def fig_mechanism(c, mode):
     finish(fig, ax, c, f"mechanism.{mode}.svg")
 
 
+# ---------------------------------------------------------------- figure 16
+YARD_ORDER = [("t2t_minus_grch38_linear", "T2T − GRCh38\nlinear", "reference"),
+              ("t2t_minus_grch38_graph", "T2T − GRCh38\ngraph", "reference"),
+              ("graph_minus_linear_grch38", "graph − linear\nGRCh38", "aligner"),
+              ("graph_minus_linear_t2t", "graph − linear\nT2T", "aligner"),
+              ("hc_minus_dv_grch38", "HC − DeepVariant\nGRCh38", "caller"),
+              ("hc_minus_dv_t2t", "HC − DeepVariant\nT2T", "caller")]
+
+
+def fig_yardstick(c, mode):
+    """How large is a reference swap, next to a decision nobody argues about."""
+    y = DATA["yardstick"]["by_contrast"]
+    colour = {"reference": c["s1"], "aligner": c["s3"], "caller": c["s2"]}
+    fig, ax = plt.subplots(figsize=(8.4, 4.2))
+    vals, labels, cols, dims = [], [], [], []
+    for key, lab, dim in YARD_ORDER:
+        r = y[key]
+        vals.append(100 * r.get("share_beyond_0.01", 1 - r.get("share_within_0.01", 0.0)))
+        labels.append(lab); cols.append(colour[dim]); dims.append(dim)
+    x = list(range(len(vals)))
+    ax.bar(x, vals, 0.62, color=cols, zorder=3)
+    for i, v in enumerate(vals):
+        ax.annotate(f"{v:.2f}%", xy=(i, v), xytext=(0, 4), textcoords="offset points",
+                    ha="center", color=c["ink2"], fontsize=9.5)
+    seen = set()
+    for dim in dims:
+        if dim in seen:
+            continue
+        seen.add(dim)
+        ax.bar([0], [0], 0.0, color=colour[dim],
+               label={"reference": "change the reference genome",
+                      "aligner": "change the aligner",
+                      "caller": "change the variant caller"}[dim])
+    ax.set_xticks(x, labels)
+    ax.set_ylim(0, max(vals) * 1.25)
+    ax.set_ylabel("sites whose allele frequency differs by more than 0.01",
+                  color=c["ink2"], fontsize=9.5)
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    frame(ax, c)
+    title(ax, c, "A reference swap is the smallest of the three changes",
+          "Same donors, same chromosomes, same stage. Swapping the variant caller — a "
+          "decision most groups make without discussion — moves allele frequencies more "
+          "than twice as much as swapping the reference.")
+    legend(ax, c, loc="upper left")
+    finish(fig, ax, c, f"yardstick.{mode}.svg")
+
+
 FIGURES = [fig_pc_sweep, fig_four_arm, fig_stratified, fig_direction_context,
            fig_interaction, fig_calibration, fig_direction, fig_contrast_pairs,
            fig_reference_vs_aligner, fig_hotspot_context,
-           fig_concordance, fig_chrx_by_sex, fig_gene_classes, fig_mechanism]
+           fig_concordance, fig_chrx_by_sex, fig_gene_classes, fig_mechanism,
+           fig_yardstick]
 
 if __name__ == "__main__":
     for mode, palette in (("light", LIGHT), ("dark", DARK)):

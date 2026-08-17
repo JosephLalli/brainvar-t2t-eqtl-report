@@ -5,11 +5,12 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Fold the variant-caller yardstick into the page** once `runs/caller_axis_af_20260816`
-finishes. It is running over chr1, chr6, chr17, chr19, chr22 and chrX for six callsets; the
-chr22 pilot suggested a caller swap perturbs allele frequencies roughly twice as much as an
-aligner swap, which if it holds is the strongest reassurance statement available for the
-aligner axis.
+**Measure signal in newly accessible sequence.** The last unblocked item on the plan. Define
+"newly accessible" from GRCh38-unmappable or non-syntenic intervals rather than asserting a
+set, then compare mean |z| and the count of variants reaching the association threshold inside
+those intervals against the rest of each gene's cis window. This closes the loop on the
+reference axis: the yardstick showed a reference swap barely perturbs shared variants, so what
+it changes must be in the sequence only one reference has.
 
 ### After that
 
@@ -42,6 +43,7 @@ aligner axis.
 | Lead-switch LD | Most lead switches are relabelling, not new hypotheses. Median r² between the two leads is 0.85 for a reference swap and 0.93 for an aligner swap; 56% and ~70% exceed r² 0.8. Only ~12% (reference) and ~5% (aligner) are effectively independent, so roughly **5% of shared eGenes** get a genuinely different causal candidate under a reference swap. Corrects the emphasis of the distance stage. | `lead_switch_ld_20260816` |
 | Ancestry dependence | **The reference swap is not ancestry-neutral.** Moving to T2T changes median alternate-allele load by −0.047 in EUR donors and **+0.017 in AFR** donors (Kruskal p = 1.3×10⁻³⁸), identical under both aligners — European donors come to look more like the reference and African donors less. The aligner axis shows the same test at ~1/50 the magnitude. | `ancestry_dependence_20260816` |
 | Arm-exclusive variants | The two axes add different kinds of variant. Variants only the graph can call reach \|z\| ≥ 4 **2.1× more often** than shared variants and sit in 2.4× more duplicated sequence; variants only T2T can call are slightly *less* likely to carry signal (0.92×). Invisible to any yield count. chr1 and chr19. | `arm_exclusive_variants_20260816` |
+| Three-axis yardstick | **A reference swap is a smaller perturbation than an aligner swap, and both are under half a caller swap.** Sites differing by more than 0.01 in allele frequency: reference 2.34–2.61%, aligner 2.56–2.91%, caller 5.84–6.50% (2.26× the aligner). Measured on identical donors, contigs and stage. Cross-reference contrasts are restricted to variants both references can represent, which is the point rather than a limitation. | `three_axis_af_yardstick_20260816` |
 
 ## Known risks
 

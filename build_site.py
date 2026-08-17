@@ -369,6 +369,36 @@ t_exclusive = table(
          f'all. Signal is the best |z| a variant reaches against any gene, which favours '
          f'variants tested against more genes.')
 
+YARD = DATA["yardstick"]["by_contrast"]
+YARD_ROWS = [("t2t_minus_grch38_linear", "reference"),
+             ("t2t_minus_grch38_graph", "reference"),
+             ("graph_minus_linear_grch38", "aligner"),
+             ("graph_minus_linear_t2t", "aligner"),
+             ("hc_minus_dv_grch38", "caller"),
+             ("hc_minus_dv_t2t", "caller")]
+YARD_LABEL = dict(CONTRAST_LABEL,
+                  hc_minus_dv_grch38="HaplotypeCaller − DeepVariant · GRCh38",
+                  hc_minus_dv_t2t="HaplotypeCaller − DeepVariant · T2T")
+
+
+def _beyond(r):
+    return r.get("share_beyond_0.01", 1 - r.get("share_within_0.01", float("nan")))
+
+
+t_yardstick = table(
+    ["What was changed", "Axis", "Variants compared", "Frequencies identical",
+     "Differing by &gt; 0.01"],
+    [[YARD_LABEL[k], dim, f'{YARD[k]["matched"]:,}',
+      f'{YARD[k]["share_exact"]:.1%}',
+      f'<strong>{_beyond(YARD[k]):.2%}</strong>'] for k, dim in YARD_ROWS],
+    cls="numeric",
+    note=f'{DATA["yardstick"]["donors"]} donors present in all six callsets, across '
+         f'{", ".join(DATA["yardstick"]["contigs"])}. Frequencies are recomputed identically '
+         f'from each callset, so no axis has an advantage of stage, donor set or region. '
+         f'Cross-reference rows are restricted to variants carrying a unique normalised '
+         f'identity in both references, which same-reference rows are not — see the note '
+         f'below the figure.')
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -653,6 +683,7 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
     <li><a href="#concordance">What a method change leaves alone</a></li>
     <li><a href="#mechanism">What kind of difference it is</a></li>
+    <li><a href="#yardstick">How big is that, really?</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#classes">What the moved regions are made of</a></li>
     <li><a href="#universe">The genes that were never askable</a></li>
@@ -895,6 +926,41 @@ higher or the lower frequency.</p>
 <p>Worth noting because the two instruments share no statistics: the chromosomes carrying the
 most frequency discordance are chr19, chr22, chr17, chrX, chr6 and chr21 — the same set the
 association analysis identifies below, arrived at from genotype frequencies alone.</p>
+
+<h2 id="yardstick">How big is that, really?</h2>
+
+<p>Every number so far is unanchored. A correlation of {conc_r_ref:.2f}, or
+{1 - DATA["mechanism"]["by_contrast"]["t2t_minus_grch38_linear"]["allele_frequency"]["share_within_0.01"]:.1%}
+of sites with a shifted allele frequency, means nothing without knowing what a change of
+comparable weight looks like. The variant caller supplies that. Swapping DeepVariant for
+HaplotypeCaller is a decision most groups make without discussion, and it can be measured on
+exactly the same instrument.</p>
+
+{fig("yardstick", "Bar chart comparing the share of sites with shifted allele frequency across reference, aligner and caller swaps, with the caller bars roughly twice the height of the others", "The three method axes on one footing: same donors, same chromosomes, same stage. Changing the variant caller moves allele frequencies more than twice as much as changing the reference genome.")}
+
+{t_yardstick}
+
+<p><strong>A reference swap is the smallest of the three changes.</strong> It shifts the
+frequency of {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of sites, against
+{DATA["yardstick"]["mean_by_axis"]["aligner"]:.2%} for an aligner swap and
+{DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a caller swap — the caller being
+{DATA["yardstick"]["ratio_to_aligner"]["caller"]:.1f} times the aligner and
+{DATA["yardstick"]["ratio_to_aligner"]["caller"] / DATA["yardstick"]["ratio_to_aligner"]["reference"]:.1f}
+times the reference. Anyone comfortable with their choice of variant caller has already
+accepted a larger perturbation than the one this page is about.</p>
+
+<div class="callout">
+<p><strong>The caveat is the finding, not a footnote.</strong> A cross-reference comparison can
+only be made on variants that carry a unique identity in <em>both</em> references — about 1.9
+million of the roughly 10 million in each callset. Same-reference comparisons use all of them.
+So the reference axis above is measured <em>only among variants both references can
+represent</em>, and the variants only one reference can represent are excluded entirely.</p>
+<p>Read the two halves together and they say something sharper than either alone. Where two
+references can both see a variant, they agree about it better than two aligners do. The
+reference's distinctive effect is not that it measures shared variants differently — it is
+<em>what it can see at all</em>. That is what the gene universes and the arm-exclusive variants
+further down are measuring, and it is where the reference change actually lives.</p>
+</div>
 
 <h2 id="hotspots">Where the references disagree</h2>
 
@@ -1446,6 +1512,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
 <p>Settled, in the sense of resting on the complete four-arm run tree:</p>
 
 <ul>
+  <li><strong>A reference swap is the smallest of the three method changes.</strong> Among
+      variants both references can represent it shifts
+      {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of allele frequencies, against
+      {DATA["yardstick"]["mean_by_axis"]["aligner"]:.2%} for an aligner swap and
+      {DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a variant-caller swap.</li>
   <li><strong>Most of the map does not move.</strong> An aligner swap leaves
       {conc_calls_aligner:.1%} of association calls identical and a reference swap
       {conc_calls_ref:.1%}, with {1 - gene_moved_hi:.0%} to {1 - gene_moved_lo:.0%} of genes

@@ -115,6 +115,7 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
     <li><a href="#concordance">What a method change leaves alone</a></li>
     <li><a href="#mechanism">What kind of difference it is</a></li>
+    <li><a href="#yardstick">How big is that, really?</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#classes">What the moved regions are made of</a></li>
     <li><a href="#universe">The genes that were never askable</a></li>
@@ -385,6 +386,48 @@ higher or the lower frequency.</p>
 <p>Worth noting because the two instruments share no statistics: the chromosomes carrying the
 most frequency discordance are chr19, chr22, chr17, chrX, chr6 and chr21 — the same set the
 association analysis identifies below, arrived at from genotype frequencies alone.</p>
+
+<h2 id="yardstick">How big is that, really?</h2>
+
+<p>Every number so far is unanchored. A correlation of 0.94, or
+3.8%
+of sites with a shifted allele frequency, means nothing without knowing what a change of
+comparable weight looks like. The variant caller supplies that. Swapping DeepVariant for
+HaplotypeCaller is a decision most groups make without discussion, and it can be measured on
+exactly the same instrument.</p>
+
+
+<figure>
+  <picture>
+    <source srcset="figures/yardstick.dark.svg" media="(prefers-color-scheme: dark)">
+    <img src="figures/yardstick.light.svg" alt="Bar chart comparing the share of sites with shifted allele frequency across reference, aligner and caller swaps, with the caller bars roughly twice the height of the others" loading="lazy">
+  </picture>
+  <figcaption>The three method axes on one footing: same donors, same chromosomes, same stage. Changing the variant caller moves allele frequencies more than twice as much as changing the reference genome.</figcaption>
+</figure>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>What was changed</th><th>Axis</th><th>Variants compared</th><th>Frequencies identical</th><th>Differing by &gt; 0.01</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>reference</td><td>1,857,319</td><td>72.7%</td><td><strong>2.34%</strong></td></tr><tr><td>T2T − GRCh38 · graph</td><td>reference</td><td>1,874,886</td><td>74.7%</td><td><strong>2.61%</strong></td></tr><tr><td>graph − linear · GRCh38</td><td>aligner</td><td>9,808,355</td><td>87.4%</td><td><strong>2.56%</strong></td></tr><tr><td>graph − linear · T2T</td><td>aligner</td><td>10,089,116</td><td>85.1%</td><td><strong>2.91%</strong></td></tr><tr><td>HaplotypeCaller − DeepVariant · GRCh38</td><td>caller</td><td>9,374,537</td><td>77.7%</td><td><strong>5.84%</strong></td></tr><tr><td>HaplotypeCaller − DeepVariant · T2T</td><td>caller</td><td>9,776,764</td><td>68.9%</td><td><strong>6.50%</strong></td></tr></tbody></table></div><p class="tnote">223 donors present in all six callsets, across chr1, chr6, chr17, chr19, chr22, chrX. Frequencies are recomputed identically from each callset, so no axis has an advantage of stage, donor set or region. Cross-reference rows are restricted to variants carrying a unique normalised identity in both references, which same-reference rows are not — see the note below the figure.</p>
+
+<p><strong>A reference swap is the smallest of the three changes.</strong> It shifts the
+frequency of 2.47% of sites, against
+2.73% for an aligner swap and
+6.17% for a caller swap — the caller being
+2.3 times the aligner and
+2.5
+times the reference. Anyone comfortable with their choice of variant caller has already
+accepted a larger perturbation than the one this page is about.</p>
+
+<div class="callout">
+<p><strong>The caveat is the finding, not a footnote.</strong> A cross-reference comparison can
+only be made on variants that carry a unique identity in <em>both</em> references — about 1.9
+million of the roughly 10 million in each callset. Same-reference comparisons use all of them.
+So the reference axis above is measured <em>only among variants both references can
+represent</em>, and the variants only one reference can represent are excluded entirely.</p>
+<p>Read the two halves together and they say something sharper than either alone. Where two
+references can both see a variant, they agree about it better than two aligners do. The
+reference's distinctive effect is not that it measures shared variants differently — it is
+<em>what it can see at all</em>. That is what the gene universes and the arm-exclusive variants
+further down are measuring, and it is where the reference change actually lives.</p>
+</div>
 
 <h2 id="hotspots">Where the references disagree</h2>
 
@@ -1006,6 +1049,11 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
 <p>Settled, in the sense of resting on the complete four-arm run tree:</p>
 
 <ul>
+  <li><strong>A reference swap is the smallest of the three method changes.</strong> Among
+      variants both references can represent it shifts
+      2.47% of allele frequencies, against
+      2.73% for an aligner swap and
+      6.17% for a variant-caller swap.</li>
   <li><strong>Most of the map does not move.</strong> An aligner swap leaves
       97.4% of association calls identical and a reference swap
       73.5%, with 91% to 95% of genes

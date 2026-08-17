@@ -116,7 +116,7 @@ and agreement of association calls at |z| > 4, for every contrast.
 Run root: `runs/gene_discordance_disease_20260816`.
 
 ### Calibrate: what counts as a large difference
-**Add the variant-caller axis.** `[IN PROGRESS — allele-frequency stage]` Run root
+**Add the variant-caller axis.** `[COMPLETE — allele-frequency stage]` Run root
 `runs/caller_axis_af_20260816`; script `scratch/analyze_caller_axis_af_20260816.py`.
 
 *Scoped in two stages.* The full genotype-to-association rerun is expensive and gated. The
@@ -133,9 +133,34 @@ callsets (`5212_D2` from GRCh38, `6085_D2` from T2T). Without intersecting the d
 would be computed over different samples. The run intersects to the 223 donors present in all
 six callsets.
 
-*Pilot result, chr22 only, superseded by the run in progress:* a caller swap moved allele
-frequencies roughly twice as much as an aligner swap on the same reference — 9.0% of sites
-beyond 0.01 against 4.2% within GRCh38, and 14.5% against 9.0% within T2T.
+*Result.* Run roots `runs/caller_axis_af_20260816` and
+`runs/three_axis_af_yardstick_20260816`. Six callsets, 223 donors present in all of them, six
+contigs (chr1, chr6, chr17, chr19, chr22, chrX), frequencies computed identically throughout so
+no axis has an advantage of stage, donor set or region.
+
+| Axis | Sites differing by more than 0.01 | Relative to an aligner swap |
+|---|---|---|
+| Reference (T2T − GRCh38) | 2.34%, 2.61% | **0.91×** |
+| Aligner (graph − linear) | 2.56%, 2.91% | 1.00× |
+| **Caller (HaplotypeCaller − DeepVariant)** | **5.84%, 6.50%** | **2.26×** |
+
+**Swapping the reference genome perturbs allele frequencies slightly less than swapping the
+aligner, and both are under half what swapping the variant caller does.** This is the
+reassurance statement the project was missing: the reference choice is a smaller perturbation
+than a routine tooling decision most groups make without discussion.
+
+*The caveat is essential and changes what the number means.* Cross-reference contrasts can only
+be computed on variants carrying a unique normalised identity in both references — about 1.9
+million of the roughly 10 million each callset holds. Same-reference contrasts use all of them.
+So the reference axis is measured **only among variants both references can represent**, and
+the variants only one reference can represent are excluded entirely.
+
+That is not a flaw; it is the finding, stated precisely. Where two references can both see a
+variant, they agree about it better than two aligners do. The reference's distinctive effect is
+not in *measuring shared variants differently* — it is in **what it can see at all**, which is
+what the gene-universe and arm-exclusive-variant results measure. The two halves fit together:
+a reference swap is a small perturbation to the shared part of the genome and a large change to
+which part is shared.
 
 Original statement of the task: re-run the genotype→association
 path with HaplotypeCaller in place of DeepVariant, linear arms, both references, then score
