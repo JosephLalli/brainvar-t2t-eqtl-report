@@ -262,11 +262,32 @@ rest of that gene's cis window. The question is whether newly sequenced sequence
 *signal* or only *variants*. Requires a defensible "newly accessible" interval set — derive
 from GRCh38-unmappable / non-syntenic regions rather than asserting one. *Cost: medium.*
 
-**Test whether arm-exclusive variants carry signal.** `[NOT STARTED]` ~388k T2T-only and ~284k GRCh38-only
-identities within the matched frame. Do they ever become lead variants or reach significance?
-**Stratify by region class** — a GRCh38-exclusive variant in an ENCODE-blacklist or otherwise
-known-difficult region means something very different from one in ordinary sequence. Without
-that stratification the comparison is not interpretable. *Cost: medium.*
+**Test whether arm-exclusive variants carry signal.** `[COMPLETE — chr1 and chr19]`
+Run root `runs/arm_exclusive_variants_20260816`.
+
+A variant is exclusive to an arm when its normalised common-frame identity has no counterpart
+among the other arm's tested variants. Signal is the best |z| it achieves against any gene,
+compared against that same arm's shared variants.
+
+| Contrast | Exclusive variants | Reach \|z\| ≥ 4 | Shared variants do | Ratio | Duplication content |
+|---|---|---|---|---|---|
+| T2T − GRCh38 · linear | 44,996 | 5.5% | 6.0% | **0.92×** | 0.084 vs 0.065 |
+| graph − linear · T2T | 22,785 | **12.4%** | 5.9% | **2.09×** | 0.154 vs 0.065 |
+
+**The two axes add different kinds of variant.** Variants only the pangenome graph can call
+are *twice as likely* to carry an association as the variants both aligners share, and they sit
+in sequence two and a half times as duplicated. Variants only T2T can call are, if anything,
+slightly *less* likely to carry one than shared variants.
+
+So the aligner is not merely adding variants — it is adding variants that produce signal, in
+exactly the duplicated sequence where a linear aligner has least to work with. The reference
+adds variants of ordinary informativeness. That distinction is invisible to any yield count,
+which sees both as "more variants tested".
+
+*Bounds on this.* Computed on chr1 and chr19 only, and restricted to variants carrying a
+unique normalised identity — so variants that cannot be placed in the common frame at all are
+excluded from both groups, and those are the most reference-specific of all. Summarising a
+variant by its best |z| against any gene favours variants tested against more genes.
 
 ### Downstream consequence: does the conclusion change
 **Measure lead-variant switching by LD.** `[COMPLETE]`

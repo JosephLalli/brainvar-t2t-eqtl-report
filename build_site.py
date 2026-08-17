@@ -349,6 +349,26 @@ t_ancestry = table(
          f'superpopulation assignments, not self-reported, and groups outside these three are '
          f'too small to test.')
 
+EXCL = DATA["arm_exclusive"]["by_contrast"]
+
+t_exclusive = table(
+    ["Contrast", "Exclusive variants", "Reach |z| ≥ 4", "Shared variants do",
+     "Ratio", "Duplication content"],
+    [[CONTRAST_LABEL[k], f'{EXCL[k]["exclusive"]["variants"]:,}',
+      f'<strong>{EXCL[k]["exclusive"]["share_reaching_call"]:.1%}</strong>',
+      f'{EXCL[k]["shared"]["share_reaching_call"]:.1%}',
+      f'<strong>{EXCL[k]["call_rate_ratio"]:.2f}×</strong>',
+      f'{EXCL[k]["exclusive"]["mean_segdup"]:.3f} vs '
+      f'{EXCL[k]["shared"]["mean_segdup"]:.3f}']
+     for k in EXCL],
+    cls="numeric",
+    note=f'Computed on {" and ".join(DATA["arm_exclusive"]["contigs"])} only. A variant is '
+         f'exclusive to an arm when its normalised identity has no counterpart among the '
+         f'other arm\'s tested variants; variants that cannot be placed in the common frame '
+         f'at all are excluded from both groups, and those are the most reference-specific of '
+         f'all. Signal is the best |z| a variant reaches against any gene, which favours '
+         f'variants tested against more genes.')
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -1183,6 +1203,25 @@ annotation releases, and a majority of exclusive genes —
 the other reference's annotation altogether. Annotation therefore accounts for much of the
 turnover, and only the residual is attributable to the reference sequence itself. Both figures
 belong in any honest statement of this result.</p>
+
+<p>The same question can be asked one level down, of variants rather than genes, and there the
+two axes behave quite differently. A variant is exclusive to an arm when its normalised
+identity has no counterpart among the other arm's tested variants; comparing those against the
+same arm's shared variants asks whether the exclusive ones ever produce an association.</p>
+
+{t_exclusive}
+
+<p>Variants only the pangenome graph can call reach the association threshold
+<strong>{EXCL["graph_minus_linear_t2t"]["call_rate_ratio"]:.1f} times</strong> as often as the
+variants both aligners share, and they sit in sequence roughly two and a half times as
+duplicated. Variants only T2T can call are, if anything, slightly <em>less</em> likely to carry
+a signal than shared ones
+({EXCL["t2t_minus_grch38_linear"]["call_rate_ratio"]:.2f}×).</p>
+
+<p>So the aligner is not simply adding variants; it is adding variants that produce signal, in
+exactly the duplicated sequence a linear aligner has least to work with. The reference adds
+variants of ordinary informativeness. A yield count sees both as "more variants tested" and
+cannot tell them apart.</p>
 
 <h2 id="chrx">Chromosome X, and why sex decides it</h2>
 

@@ -722,6 +722,25 @@ the other reference's annotation altogether. Annotation therefore accounts for m
 turnover, and only the residual is attributable to the reference sequence itself. Both figures
 belong in any honest statement of this result.</p>
 
+<p>The same question can be asked one level down, of variants rather than genes, and there the
+two axes behave quite differently. A variant is exclusive to an arm when its normalised
+identity has no counterpart among the other arm's tested variants; comparing those against the
+same arm's shared variants asks whether the exclusive ones ever produce an association.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Exclusive variants</th><th>Reach |z| ≥ 4</th><th>Shared variants do</th><th>Ratio</th><th>Duplication content</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>44,996</td><td><strong>5.5%</strong></td><td>6.0%</td><td><strong>0.92×</strong></td><td>0.084 vs 0.065</td></tr><tr><td>graph − linear · T2T</td><td>22,785</td><td><strong>12.4%</strong></td><td>5.9%</td><td><strong>2.09×</strong></td><td>0.154 vs 0.065</td></tr></tbody></table></div><p class="tnote">Computed on chr1 and chr19 only. A variant is exclusive to an arm when its normalised identity has no counterpart among the other arm's tested variants; variants that cannot be placed in the common frame at all are excluded from both groups, and those are the most reference-specific of all. Signal is the best |z| a variant reaches against any gene, which favours variants tested against more genes.</p>
+
+<p>Variants only the pangenome graph can call reach the association threshold
+<strong>2.1 times</strong> as often as the
+variants both aligners share, and they sit in sequence roughly two and a half times as
+duplicated. Variants only T2T can call are, if anything, slightly <em>less</em> likely to carry
+a signal than shared ones
+(0.92×).</p>
+
+<p>So the aligner is not simply adding variants; it is adding variants that produce signal, in
+exactly the duplicated sequence a linear aligner has least to work with. The reference adds
+variants of ordinary informativeness. A yield count sees both as "more variants tested" and
+cannot tell them apart.</p>
+
 <h2 id="chrx">Chromosome X, and why sex decides it</h2>
 
 <p>One result does not fit the pattern of the others, and it took a stratified analysis to
