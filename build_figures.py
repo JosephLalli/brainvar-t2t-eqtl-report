@@ -326,6 +326,7 @@ CONTRAST_LABEL = {
     "graph_minus_linear_grch38": "graph − linear  ·  GRCh38",
     "graph_minus_linear_t2t": "graph − linear  ·  T2T",
 }
+DIMENSION = {k: v["dimension"] for k, v in DATA["hotspots"]["by_contrast"].items()}
 
 
 def mb(interval: str) -> str:
@@ -478,9 +479,152 @@ def fig_direction_context(c, mode):
     finish(fig, list(axes), c, f"direction-context.{mode}.svg")
 
 
+# ---------------------------------------------------------------- figure 12
+def fig_concordance(c, mode):
+    """The reassurance figure: what a method swap leaves untouched."""
+    bc = DATA["concordance"]["by_contrast"]
+    fig, ax = plt.subplots(figsize=(8.2, 4.0))
+    w = 0.36
+    y = list(range(len(CONTRAST_ORDER)))
+    calls = [100 * bc[k]["call_jaccard"] for k in CONTRAST_ORDER]
+    moved = [100 * bc[k]["share_abs_delta_z_below_0.5"] for k in CONTRAST_ORDER]
+    ax.barh([i - w / 2 - 0.01 for i in y], calls, w, color=c["s1"],
+            label="associations called identically", zorder=3)
+    ax.barh([i + w / 2 + 0.01 for i in y], moved, w, color=c["s3"],
+            label="variants moving less than 0.5 z", zorder=3)
+    for i, (a, b) in enumerate(zip(calls, moved)):
+        for off, v in ((-w / 2 - 0.01, a), (w / 2 + 0.01, b)):
+            ax.annotate(f"{v:.1f}%", xy=(v, i + off), xytext=(6, 0),
+                        textcoords="offset points", va="center",
+                        color=c["ink2"], fontsize=9)
+    ax.set_yticks(y, [CONTRAST_LABEL[k] for k in CONTRAST_ORDER])
+    ax.invert_yaxis()
+    ax.set_xlim(0, 118)
+    ax.set_xticks([0, 25, 50, 75, 100])
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
+    ax.yaxis.grid(False)
+    ax.set_axisbelow(True)
+    frame(ax, c, ygrid=False)
+    title(ax, c, "Most of the map does not move",
+          "Agreement across every exactly matched variant. Swapping the aligner leaves 97% "
+          "of association calls identical; swapping the reference leaves about three "
+          "quarters.")
+    legend(ax, c, loc="lower right")
+    finish(fig, ax, c, f"concordance.{mode}.svg")
+
+
+# ---------------------------------------------------------------- figure 13
+def fig_chrx_by_sex(c, mode):
+    r = DATA["chrx_by_sex"]["results"]
+    fig, ax = plt.subplots(figsize=(8.2, 4.2))
+    x = list(range(len(CONTRAST_ORDER)))
+    w = 0.36
+    xx = [r[f"{k}::XX"]["odds_ratio"] for k in CONTRAST_ORDER]
+    xy = [r[f"{k}::XY"]["odds_ratio"] for k in CONTRAST_ORDER]
+    ax.bar([i - w / 2 - 0.01 for i in x], xx, w, color=c["s1"],
+           label="XX donors (n = 92)", zorder=3)
+    ax.bar([i + w / 2 + 0.01 for i in x], xy, w, color=c["s2"],
+           label="XY donors (n = 133)", zorder=3)
+    for i, (a, b) in enumerate(zip(xx, xy)):
+        for off, v in ((-w / 2 - 0.01, a), (w / 2 + 0.01, b)):
+            ax.annotate(f"{v:.2f}", xy=(i + off, v), xytext=(0, 4),
+                        textcoords="offset points", ha="center",
+                        color=c["ink2"], fontsize=9)
+    ax.axhline(1.0, color=c["axis"], linewidth=1.4, linestyle=(0, (4, 3)), zorder=4)
+    ax.annotate("no chrX excess", xy=(-0.48, 1.0), xytext=(0, 6),
+                textcoords="offset points", color=c["ink2"], fontsize=9, ha="left")
+    ax.set_yscale("log")
+    ax.set_yticks([0.125, 0.25, 0.5, 1, 2, 4, 8])
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.set_xticks(x, [CONTRAST_LABEL[k].replace(" · ", "\n") for k in CONTRAST_ORDER])
+    ax.set_ylabel("chrX odds of discordance vs autosomes", color=c["ink2"], fontsize=9.5)
+    frame(ax, c)
+    title(ax, c, "The chromosome X effect belongs to one cell of the design",
+          "Odds that a chrX gene is discordant relative to an autosomal gene, within the same "
+          "sex stratum. Seven cells sit at or below one; one does not.")
+    legend(ax, c, loc="upper left")
+    finish(fig, ax, c, f"chrx-by-sex.{mode}.svg")
+
+
+# ---------------------------------------------------------------- figure 14
+GENE_CLASSES = [("genomic_disorder", "recurrent genomic-disorder region"),
+                ("segmental_duplication", "segmental duplication"),
+                ("human_accelerated", "human accelerated region")]
+
+
+def fig_gene_classes(c, mode):
+    """The thesis figure: what kind of sequence the moved genes sit in."""
+    bc = DATA["gene_classes"]["by_contrast"]
+    fig, axes = plt.subplots(len(GENE_CLASSES), 1, figsize=(8.4, 5.4), sharex=True)
+    for ax, (key, name) in zip(axes, GENE_CLASSES):
+        for i, ck in enumerate(CONTRAST_ORDER):
+            v = bc[ck][key]["odds_ratio"]
+            colour = c["s1"] if DIMENSION[ck] == "reference" else c["s2"]
+            ax.plot([1, v], [i, i], color=colour, linewidth=1.6, zorder=2,
+                    solid_capstyle="round")
+            ax.plot(v, i, "o", color=colour, markersize=7,
+                    markeredgecolor=c["surface"], markeredgewidth=1.2, zorder=3)
+            ax.annotate(f"{v:.1f}×", xy=(v, i), xytext=(8, 0),
+                        textcoords="offset points", va="center",
+                        color=c["ink2"], fontsize=9)
+        ax.axvline(1.0, color=c["axis"], linewidth=1.4, linestyle=(0, (4, 3)), zorder=1)
+        ax.set_yticks(range(len(CONTRAST_ORDER)),
+                      [CONTRAST_LABEL[k] for k in CONTRAST_ORDER])
+        ax.invert_yaxis()
+        ax.set_xscale("log")
+        ax.set_xlim(0.75, 20)
+        ax.set_xticks([1, 2, 4, 8])
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}×"))
+        ax.set_title(name, color=c["ink2"], fontsize=10, loc="left", pad=6)
+        ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
+        ax.yaxis.grid(False)
+        ax.set_axisbelow(True)
+        frame(ax, c, ygrid=False)
+    axes[-1].set_xlabel("odds that a method-sensitive gene lies in this sequence class",
+                        color=c["ink2"], fontsize=9.5)
+    fig.text(0.045, 1.10, "Genes that move sit in structurally dynamic sequence",
+             color=c["ink"], fontsize=12.5, fontweight="600", ha="left", va="top")
+    fig.text(0.045, 1.045, "Twelve of twelve tests positive. Blue is a reference swap, "
+                           "orange an aligner swap; each is tested against the genes tested "
+                           "in the same contrast.",
+             color=c["ink2"], fontsize=9.5, ha="left", va="top")
+    fig.subplots_adjust(hspace=0.55)
+    finish(fig, list(axes), c, f"gene-classes.{mode}.svg")
+
+
+# ---------------------------------------------------------------- figure 15
+def fig_mechanism(c, mode):
+    bc = DATA["mechanism"]["by_contrast"]
+    fig, ax = plt.subplots(figsize=(8.2, 4.0))
+    x = list(range(len(CONTRAST_ORDER)))
+    w = 0.36
+    eff = [bc[k]["decomposition"]["mean_abs_effect_term"] for k in CONTRAST_ORDER]
+    pre = [bc[k]["decomposition"]["mean_abs_precision_term"] for k in CONTRAST_ORDER]
+    ax.bar([i - w / 2 - 0.01 for i in x], eff, w, color=c["s1"],
+           label="the estimate moved", zorder=3)
+    ax.bar([i + w / 2 + 0.01 for i in x], pre, w, color=c["s4"],
+           label="the precision moved", zorder=3)
+    for i, (a, b) in enumerate(zip(eff, pre)):
+        for off, v in ((-w / 2 - 0.01, a), (w / 2 + 0.01, b)):
+            ax.annotate(f"{v:.3f}", xy=(i + off, v), xytext=(0, 4),
+                        textcoords="offset points", ha="center",
+                        color=c["ink2"], fontsize=9)
+    ax.set_yscale("log")
+    ax.set_xticks(x, [CONTRAST_LABEL[k].replace(" · ", "\n") for k in CONTRAST_ORDER])
+    ax.set_ylabel("mean contribution to Δ Z (log scale)", color=c["ink2"], fontsize=9.5)
+    frame(ax, c)
+    title(ax, c, "Method changes move the estimate, not the precision",
+          "The exact decomposition of the change in test statistic into a term for the effect "
+          "and a term for its standard error. Neither axis buys precision.")
+    legend(ax, c, loc="upper right", ncol=2)
+    finish(fig, ax, c, f"mechanism.{mode}.svg")
+
+
 FIGURES = [fig_pc_sweep, fig_four_arm, fig_stratified, fig_direction_context,
            fig_interaction, fig_calibration, fig_direction, fig_contrast_pairs,
-           fig_reference_vs_aligner, fig_hotspot_context]
+           fig_reference_vs_aligner, fig_hotspot_context,
+           fig_concordance, fig_chrx_by_sex, fig_gene_classes, fig_mechanism]
 
 if __name__ == "__main__":
     for mode, palette in (("light", LIGHT), ("dark", DARK)):

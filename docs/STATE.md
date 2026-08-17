@@ -5,13 +5,14 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Characterise genes testable in one reference only.** The gene universes are 18,273 (GRCh38)
-against 18,114 (T2T), frozen natively and never intersected, so every matched-gene comparison
-run so far is structurally blind to the non-overlap. Identify those genes, their biotype and
-their sequence context, and check whether the T2T-only ones sit in newly resolved regions.
+**Add the variant-caller axis.** The yardstick, and the most expensive remaining step. Re-run
+the genotype-to-association path with HaplotypeCaller in place of DeepVariant on the two linear
+arms, then score `hc_minus_dv_grch38` and `hc_minus_dv_t2t` through the identical window and
+gene pipelines. Inputs are verified present and identically processed. Restrict to the flagged
+windows first to keep the first pass cheap.
 
-Then **add the variant-caller axis** (expensive, but it recalibrates every effect size
-reported), then **measure lead-variant switching by LD** and **count credible sets per gene**.
+Then **measure lead-variant switching by LD**, **count credible sets per gene** (locate and
+validate the SuSiE outputs first), and **measure top-k rank concordance**.
 
 ## Complete
 
@@ -26,6 +27,7 @@ reported), then **measure lead-variant switching by LD** and **count credible se
 | chrX by sex | The chrX aligner effect is **XX-specific**: graph−linear·T2T moves 34.6% of chrX genes in XX against 6.8% autosomal (OR 7.27, p = 3.8×10⁻⁸⁵), while the other seven contrast-by-stratum cells show nothing (OR 0.16–0.91). Not power — XY has 133 donors to XX's 92. chrX dosage encoding is identical across all four arms, so differential ploidy handling is excluded. | `chrx_discordance_by_sex_20260816` |
 | Effect vs precision | Both axes are **effect-dominated**, not precision-dominated — 93.9% (reference) and 94.9% (aligner) of variants; median se ratio 1.0017 and 1.0000. Neither method change buys precision; both change what is measured. In duplicated sequence the aligner's precision term doubles relative to its effect term while the reference's barely moves. Refutes the hypothesis stated in the plan. | `effect_precision_and_af_20260816` |
 | Allele-frequency concordance | Median \|ΔAF\| exactly 0 in all four contrasts. Exactly equal at 70% (reference) and 82–83% (aligner); within 0.01 at 96.2% and 98.4%. The **1.6–3.9% beyond 0.01 is the caution map**, unsigned. Worst chromosomes (chr19, chr22, chr17, chrX, chr6, chr21) match the eQTL-derived hotspots, from an instrument sharing no statistics with them. | `effect_precision_and_af_20260816` |
+| Gene universe | The 159-gene net difference between universes hides a **1,175-gene turnover**: 667 genes testable only on GRCh38, 508 only on T2T, and **278 of them are eGenes**. Exclusive genes are more often eGenes than shared ones (26.2% / 21.7% vs 20.8%). T2T-exclusive genes are ~4x as duplicated as shared genes. Majority are absent from the other annotation entirely, so annotation release explains much of the turnover. | `gene_universe_asymmetry_20260816` |
 
 ## Known risks
 

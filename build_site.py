@@ -180,7 +180,89 @@ def table(headers, rows, *, cls="", note="") -> str:
             f"<tbody>{body}</tbody></table></div>{n}")
 
 
+CONC = DATA["concordance"]["by_contrast"]
+XAXIS = DATA["concordance"]["cross_axis_overlap"]
+GCLS = DATA["gene_classes"]["by_contrast"]
+CHRX = DATA["chrx_by_sex"]["results"]
+MECH = DATA["mechanism"]["by_contrast"]
+UNI = DATA["gene_universe"]
+
+conc_calls_aligner = min(CONC[k]["call_jaccard"] for k in WF_KEYS)
+conc_calls_ref = min(CONC[k]["call_jaccard"] for k in REF_KEYS)
+conc_r_aligner = min(CONC[k]["pearson_r"] for k in WF_KEYS)
+conc_r_ref = min(CONC[k]["pearson_r"] for k in REF_KEYS)
+gene_moved_lo = min(CONC[k]["gene_discordant_rate"] for k in CONTRAST_ORDER)
+gene_moved_hi = max(CONC[k]["gene_discordant_rate"] for k in CONTRAST_ORDER)
+gd_or_lo = min(GCLS[k]["genomic_disorder"]["odds_ratio"] for k in CONTRAST_ORDER)
+gd_or_hi = max(GCLS[k]["genomic_disorder"]["odds_ratio"] for k in CONTRAST_ORDER)
+har_or_lo = min(GCLS[k]["human_accelerated"]["odds_ratio"] for k in CONTRAST_ORDER)
+har_or_hi = max(GCLS[k]["human_accelerated"]["odds_ratio"] for k in CONTRAST_ORDER)
+chrx_hit = CHRX["graph_minus_linear_t2t::XX"]
+uni_excl = UNI["grch38_only"]["genes"] + UNI["t2t_only"]["genes"]
+uni_excl_egenes = UNI["grch38_only"]["egenes"] + UNI["t2t_only"]["egenes"]
+
 # ----------------------------------------------------------------- tables
+t_concordance = table(
+    ["Contrast", "Correlation of z", "Variants moving &lt; 0.5 z",
+     "Associations called identically", "Genes that moved"],
+    [[CONTRAST_LABEL[k], f'{CONC[k]["pearson_r"]:.4f}',
+      f'{CONC[k]["share_abs_delta_z_below_0.5"]:.1%}',
+      f'<strong>{CONC[k]["call_jaccard"]:.1%}</strong>',
+      f'{CONC[k]["gene_discordant_rate"]:.1%}'] for k in CONTRAST_ORDER],
+    cls="numeric",
+    note=f'Across every exactly matched variant-gene pair. An association is "called" when '
+         f'|z| reaches {DATA["concordance"]["call_threshold_abs_z"]:.0f}, roughly p = 6×10⁻⁵. '
+         f'The final column counts genes whose mean |Δ Z| across their cis variants is an '
+         f'outlier at an estimated 5% false-discovery proportion.')
+
+t_gene_classes = table(
+    ["Contrast", "Recurrent genomic-disorder region", "Segmental duplication",
+     "Human accelerated region"],
+    [[CONTRAST_LABEL[k]]
+     + [f'<strong>{GCLS[k][c]["odds_ratio"]:.1f}×</strong><br>'
+        f'<span class="sub">{GCLS[k][c]["rate_in_class"]:.1%} vs '
+        f'{GCLS[k][c]["rate_out"]:.1%}</span>'
+        for c in ("genomic_disorder", "segmental_duplication", "human_accelerated")]
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="Odds that a method-sensitive gene falls in each class, against the genes tested in "
+         "the same contrast — never against the genome, which would manufacture the result. "
+         "Percentages are the discordance rate inside and outside the class. Fisher tests "
+         "treat genes as independent and genes in one duplicated block are not, so the odds "
+         "ratios are the trustworthy part.")
+
+t_chrx = table(
+    ["Contrast", "XX: chrX vs autosomal", "XX odds", "XY: chrX vs autosomal", "XY odds"],
+    [[CONTRAST_LABEL[k],
+      f'{CHRX[f"{k}::XX"]["chrx_rate"]:.1%} vs {CHRX[f"{k}::XX"]["autosomal_rate"]:.1%}',
+      f'<strong>{CHRX[f"{k}::XX"]["odds_ratio"]:.2f}</strong>',
+      f'{CHRX[f"{k}::XY"]["chrx_rate"]:.1%} vs {CHRX[f"{k}::XY"]["autosomal_rate"]:.1%}',
+      f'{CHRX[f"{k}::XY"]["odds_ratio"]:.2f}'] for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="Each stratum is compared against its own autosomes, so the difference in stratum "
+         "size cannot drive the comparison. chrX dosage encoding was audited and is identical "
+         "across all four arms, which excludes differential ploidy handling.")
+
+t_universe = table(
+    ["", "GRCh38 only", "T2T only", "Shared"],
+    [["Genes testable", f'{UNI["grch38_only"]["genes"]:,}',
+      f'{UNI["t2t_only"]["genes"]:,}', f'{UNI["shared"]:,}'],
+     ["eGenes among them", f'<strong>{UNI["grch38_only"]["egenes"]:,}</strong>',
+      f'<strong>{UNI["t2t_only"]["egenes"]:,}</strong>', "—"],
+     ["Share that are eGenes", f'{UNI["grch38_only"]["egene_rate"]:.1%}',
+      f'{UNI["t2t_only"]["egene_rate"]:.1%}',
+      f'{UNI["shared_reference_context"]["egene_rate"]:.1%}'],
+     ["Absent from the other annotation",
+      f'{UNI["grch38_only_absent_from_t2t_annotation"]:,}',
+      f'{UNI["t2t_only_absent_from_grch38_annotation"]:,}', "—"],
+     ["Mean duplication content", "—",
+      f'{UNI["t2t_only"]["mean_segdup"]:.3f}',
+      f'{UNI["shared_reference_context"]["mean_segdup"]:.3f}']],
+    cls="numeric",
+    note="A gene is in a reference's universe when both of that reference's arms tested it. "
+         "Duplication content is measured in T2T coordinates and so is available only for the "
+         "T2T-exclusive and shared sets.")
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -416,6 +498,7 @@ changes when you swap the aligner, and where on the genome the two disagree.">
   table.numeric td + td, table.numeric th + th {{ text-align: right;
        font-variant-numeric: tabular-nums; }}
   .tnote {{ font-size: 0.83rem; color: var(--muted); margin: 0 0 1.6rem; line-height: 1.5; }}
+  .sub {{ font-size: 0.82em; color: var(--muted); font-weight: 400; }}
   blockquote {{ margin: 1.75rem 0; padding: 0.15rem 0 0.15rem 1.15rem;
                 border-left: 3px solid var(--accent); color: var(--ink2); }}
   blockquote p:last-child {{ margin-bottom: 0; }}
@@ -449,10 +532,10 @@ changes when you swap the aligner, and where on the genome the two disagree.">
 
 <header class="masthead">
   <h1>Mapping Brain eQTLs on Two Reference Genomes</h1>
-  <p class="standfirst">A four-arm comparison of GRCh38 against T2T-CHM13 in the BrainVar
-  developmental cohort, crossing both references with both a linear and a pangenome-graph
-  aligner — what the reference changes, what the aligner changes, and the places on the
-  genome where the two references give measurably different answers.</p>
+  <p class="standfirst">Swapping the reference genome or the aligner leaves almost all of a
+  brain cis-eQTL map exactly where it was. The exception is a small and specific minority of
+  the genome — and it is the part that is difficult to align <em>because</em> it varies so
+  much between people, which is the same reason it carries disease.</p>
   <p class="byline">Joseph Lalli</p>
 </header>
 
@@ -462,7 +545,12 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     <li><a href="#design">The question and the four arms</a></li>
     <li><a href="#pcs">How many expression PCs?</a></li>
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
+    <li><a href="#concordance">What a method change leaves alone</a></li>
+    <li><a href="#mechanism">What kind of difference it is</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
+    <li><a href="#classes">What the moved regions are made of</a></li>
+    <li><a href="#universe">The genes that were never askable</a></li>
+    <li><a href="#chrx">Chromosome X, and why sex decides it</a></li>
     <li><a href="#interaction">Genotype×sex interaction, and why scale decides it</a></li>
     <li><a href="#stratified">Sex-stratified maps</a></li>
     <li><a href="#contrast">Contrasting effect sizes between sexes</a></li>
@@ -473,8 +561,10 @@ changes when you swap the aligner, and where on the genome the two disagree.">
 </nav>
 
 <div class="keyfig">
-  <div><span class="n">4</span><span class="l">independently processed arms: two references
-    crossed with two aligners</span></div>
+  <div><span class="n">{conc_calls_aligner:.0%}</span><span class="l">of association calls
+    unchanged when the aligner is swapped</span></div>
+  <div><span class="n">{gd_or_lo:.1f}–{gd_or_hi:.1f}×</span><span class="l">enrichment of the
+    genes that do move for genomic-disorder loci</span></div>
   <div><span class="n">{int_total:,}</span><span class="l">eGenes across the four arms
     at k = 35</span></div>
   <div><span class="n">{HS["nominal_rows"] / 1e6:.0f}M</span><span class="l">cis pairs in
@@ -549,9 +639,101 @@ headline count much. And the expression scale matters more than the reference do
 log2(CPM+1) yields {log_total:,} eGenes against {int_total:,} for the inverse-normal
 transform, a gap larger than any between-arm difference.</p>
 
-<p>That second observation is the hinge of the genotype×sex analysis further down. The first
-deserves a harder look before then, because agreement in a headline count is a weak form of
-agreement.</p>
+<p>That second observation is the hinge of the genotype×sex analysis further down. The first —
+that four independently processed arms land within two percent of each other — is the one worth
+pressing on, because a matching headline count is a weak form of agreement and everything that
+follows is an attempt to find out how weak.</p>
+
+<h2 id="concordance">What a method change leaves alone</h2>
+
+<p>The useful result has to be stated in this order, because the second half only means
+something against the first. Most people believe that reference and aligner choice do not
+much matter for genetic disease research. <strong>For most of the genome they are right</strong>,
+and confirming that is the first job here.</p>
+
+<p>Every variant that survives in both arms of a contrast, matched on gene and on exact
+normalised allele, gives a pair of test statistics that can be compared directly.</p>
+
+{fig("concordance", "Horizontal bar chart of agreement per contrast, showing 97 percent of association calls identical under an aligner swap and about three quarters under a reference swap", "Agreement across every exactly matched variant. Swapping the aligner is very nearly a no-op. Swapping the reference moves more, but still leaves the large majority of the map exactly where it was.")}
+
+{t_concordance}
+
+<p>Changing the aligner is close to doing nothing: the two arms correlate at
+{conc_r_aligner:.4f}, and <strong>{conc_calls_aligner:.1%}</strong> of the associations either
+arm would report are reported by both. Changing the reference moves more — correlation
+{conc_r_ref:.3f}, {conc_calls_ref:.1%} of calls shared — but still leaves roughly nine variants
+in ten within half a z-unit of where they started, and {1 - gene_moved_hi:.0%} to
+{1 - gene_moved_lo:.0%} of genes untouched altogether.</p>
+
+<p>Nothing in this analysis threatens prior genetics. If a reference swap had overturned a
+large fraction of a cis-eQTL map, that would have been a reason to distrust the swap rather
+than the map. The interesting question is what is in the remainder.</p>
+
+<h2 id="mechanism">What kind of difference it is</h2>
+
+<p>Before asking where the arms disagree, it is worth asking what kind of disagreement it is.
+A test statistic can move for two quite different reasons, and they can be separated exactly
+rather than approximately. Writing z as β/se,</p>
+
+<blockquote><p><code>z<sub>a</sub> − z<sub>b</sub> = (β<sub>a</sub> − β<sub>b</sub>)/se<sub>a</sub>
++ β<sub>b</sub>(1/se<sub>a</sub> − 1/se<sub>b</sub>)</code></p></blockquote>
+
+<p>The first term is movement in the <em>estimate</em>: the arms disagree about the effect,
+which is what happens when they are effectively looking at different genotypes or different
+local linkage. The second is movement in <em>precision</em>: the same effect measured with more
+or less certainty, which is what missingness and genotype quality produce. The identity is
+algebraic, and it was checked numerically in every contrast to a maximum residual of
+{MECH["t2t_minus_grch38_linear"]["decomposition"]["max_decomposition_residual"]:.0e}.</p>
+
+{fig("mechanism", "Grouped bar chart on a log scale comparing the effect and precision contributions to the change in test statistic, with the effect term far larger in all four contrasts", "The exact decomposition of the movement in the test statistic. In all four contrasts the estimate moves and the precision does not, by roughly an order of magnitude.")}
+
+<p>The answer is the same for both axes, and it was not the expected one. Movement is dominated
+by the estimate in
+{min(MECH[k]["decomposition"]["share_variants_effect_dominated"] for k in CONTRAST_ORDER):.1%}
+to
+{max(MECH[k]["decomposition"]["share_variants_effect_dominated"] for k in CONTRAST_ORDER):.1%}
+of variants, and precision barely moves at all: the median ratio of standard errors between
+arms is
+{MECH["t2t_minus_grch38_linear"]["decomposition"]["median_se_ratio_a_over_b"]:.4f} for a
+reference swap and
+{MECH["graph_minus_linear_t2t"]["decomposition"]["median_se_ratio_a_over_b"]:.4f} for an
+aligner swap.</p>
+
+<div class="callout">
+<p><strong>Neither change buys precision. Both change what is being measured.</strong> That
+matters for how any of this should be described. Where these methods differ they are not
+reducing noise around a fixed quantity; they are estimating a different one. The single place
+precision does shift is duplicated sequence, where the aligner's precision term roughly doubles
+relative to its effect term while the reference's barely moves — pangenomic alignment is
+measurably changing genotype certainty there, and only there.</p>
+</div>
+
+<p>There is a second way to ask the same question that needs no association model at all. The
+same 225 donors and the same normalised allele must give the same allele frequency, so any
+difference proves that the measurement at that site depends on which representation was used.
+The agreement is logically compelled rather than empirically hoped for, which makes this the
+cleanest instrument in the analysis — and the median difference is <strong>exactly
+zero</strong> in all four contrasts.</p>
+
+<p>Frequencies agree exactly at
+{DATA["mechanism"]["by_contrast"]["t2t_minus_grch38_linear"]["allele_frequency"]["share_exact"]:.0%}
+of sites under a reference swap and
+{DATA["mechanism"]["by_contrast"]["graph_minus_linear_grch38"]["allele_frequency"]["share_exact"]:.0%}
+under an aligner swap, and fall within 0.01 at
+{DATA["mechanism"]["by_contrast"]["t2t_minus_grch38_linear"]["allele_frequency"]["share_within_0.01"]:.1%}
+and
+{DATA["mechanism"]["by_contrast"]["graph_minus_linear_grch38"]["allele_frequency"]["share_within_0.01"]:.1%}
+respectively. The
+{1 - DATA["mechanism"]["by_contrast"]["graph_minus_linear_grch38"]["allele_frequency"]["share_within_0.01"]:.1%}
+to
+{1 - DATA["mechanism"]["by_contrast"]["t2t_minus_grch38_graph"]["allele_frequency"]["share_within_0.01"]:.1%}
+that fall outside it are the sites whose measurement is representation-dependent. The
+comparison is <em>unsigned</em>: it does not say which arm is wrong, and truth may be the
+higher or the lower frequency.</p>
+
+<p>Worth noting because the two instruments share no statistics: the chromosomes carrying the
+most frequency discordance are chr19, chr22, chr17, chrX, chr6 and chr21 — the same set the
+association analysis identifies below, arrived at from genotype frequencies alone.</p>
 
 <h2 id="hotspots">Where the references disagree</h2>
 
@@ -788,6 +970,120 @@ rather than genome-wide adjusted. Treat it as a shortlist for investigation, not
 result.</p>
 </div>
 
+<h2 id="classes">What the moved regions are made of</h2>
+
+<p>A list of discordant windows is only interesting if the windows have something in common.
+Scoring every gene by how far its cis associations move, cutting at an estimated 5%
+false-discovery proportion, and asking what kind of sequence those genes sit in gives an answer
+that is the same in every contrast.</p>
+
+{fig("gene-classes", "Lollipop chart of odds ratios across four contrasts and three sequence classes, all twelve above one, with the largest values for genomic-disorder regions under an aligner swap", "Odds that a method-sensitive gene falls in each class of sequence, against the genes tested in the same contrast. Twelve of twelve comparisons are positive.")}
+
+{t_gene_classes}
+
+<p>Genes whose eQTL results move are <strong>{gd_or_lo:.1f} to {gd_or_hi:.1f} times</strong>
+more likely to sit in a recurrent genomic-disorder region, and
+<strong>{har_or_lo:.1f} to {har_or_hi:.1f} times</strong> more likely to sit near a human
+accelerated region — the annotation that exists specifically to mark recent human evolution.
+Segmental duplication runs between
+{min(GCLS[k]["segmental_duplication"]["odds_ratio"] for k in CONTRAST_ORDER):.1f} and
+{max(GCLS[k]["segmental_duplication"]["odds_ratio"] for k in CONTRAST_ORDER):.1f} times.</p>
+
+<div class="callout">
+<p><strong>Difficulty and biological interest are not two facts here. They are one.</strong>
+These regions are hard to align because they vary so much between people that a single linear
+reference represents them badly, and between-person variation is the substance of disease
+genetics — so the same property that makes them hard to measure is what makes them worth
+measuring. That is why the enrichment above is not a warning about instability. It is the
+prediction the design was built to test, and it holds on all three axes at once.</p>
+</div>
+
+<p>The consequence is uncomfortable but specific. Fields with the longest history of
+difficulty — psychiatry, neurodevelopment, immunology — work disproportionately on loci of
+exactly this kind. The claim is not that they have been getting wrong answers. It is that they
+are the fields for which representation choice is not free, while most of genetics can
+reasonably continue to treat it as inert.</p>
+
+<p>Formal pathway enrichment of the moved genes is, correctly, almost empty: against a
+background of the genes tested in the same contrast, no term survives multiple-testing
+correction in three of the four contrasts. Below the threshold the same biology recurs across
+contrasts — MHC class I antigen processing and presentation, T-cell receptor signalling,
+allograft rejection, Fc-receptor activation — which is what one would expect if the effect is
+carried by the MHC and the Fc-receptor loci rather than by immune pathways at large. It is
+reported here as a consistent tendency, not as enrichment.</p>
+
+<h2 id="universe">The genes that were never askable</h2>
+
+<p>Every comparison so far conditions on genes present in both references, which makes all of
+it blind to the genes that exist in one universe and not the other. Those universes were frozen
+natively per reference and never intersected, and the difference between them is not what the
+totals suggest.</p>
+
+{t_universe}
+
+<p>GRCh38 tests {UNI["grch38_universe"]:,} genes and T2T {UNI["t2t_universe"]:,} — a net gap of
+{abs(UNI["grch38_universe"] - UNI["t2t_universe"])}. But the universes are not nested:
+<strong>{uni_excl:,} genes are exclusive to one reference or the other</strong>, and
+<strong>{uni_excl_egenes} of them are eGenes</strong>: real associations callable on one
+reference and simply unavailable on the other. Exclusive genes are, if anything, <em>more</em>
+likely to be eGenes than shared ones.</p>
+
+<p>The T2T-exclusive set sits in sequence about four times as duplicated as the shared set
+({UNI["t2t_only"]["mean_segdup"]:.3f} against
+{UNI["shared_reference_context"]["mean_segdup"]:.3f} mean duplication content), which is the
+same signature every other part of this analysis finds. The
+{UNI["t2t_only"]["biotypes"].get("rRNA", 0)} ribosomal RNA genes testable only on T2T are the
+expected consequence of an assembly that resolves the rDNA arrays GRCh38 leaves as gaps.</p>
+
+<p>One caveat has to travel with these numbers. The two universes come from different
+annotation releases, and a majority of exclusive genes —
+{UNI["grch38_only_absent_from_t2t_annotation"]} of {UNI["grch38_only"]["genes"]} and
+{UNI["t2t_only_absent_from_grch38_annotation"]} of {UNI["t2t_only"]["genes"]} — are absent from
+the other reference's annotation altogether. Annotation therefore accounts for much of the
+turnover, and only the residual is attributable to the reference sequence itself. Both figures
+belong in any honest statement of this result.</p>
+
+<h2 id="chrx">Chromosome X, and why sex decides it</h2>
+
+<p>One result does not fit the pattern of the others, and it took a stratified analysis to
+understand it. Measured across the whole cohort, pangenomic alignment on T2T moves chromosome X
+far more than it moves the autosomes — and no other contrast does anything comparable. Split by
+sex, the effect turns out to live in a single cell of the design.</p>
+
+{fig("chrx-by-sex", "Bar chart on a log scale of chrX odds of discordance against autosomes, by contrast and sex stratum, with seven bars at or below one and a single bar above seven", "Odds that a chrX gene is discordant relative to an autosomal gene, within the same sex stratum. Only pangenomic alignment on T2T, and only in XX donors, moves chromosome X.")}
+
+{t_chrx}
+
+<p>In XX donors, pangenomic alignment on T2T moves
+<strong>{chrx_hit["chrx_rate"]:.1%}</strong> of chromosome X genes against
+{chrx_hit["autosomal_rate"]:.1%} of autosomal genes — odds of
+<strong>{chrx_hit["odds_ratio"]:.2f}</strong>. In XY donors the same comparison gives
+{CHRX["graph_minus_linear_t2t::XY"]["odds_ratio"]:.2f}: chromosome X moves <em>less</em> than
+the autosomes. The remaining six cells sit between
+{min(CHRX[f"{k}::{s}"]["odds_ratio"] for k in REF_KEYS + [WF_KEYS[0]] for s in ("XX", "XY")):.2f}
+and
+{max(CHRX[f"{k}::{s}"]["odds_ratio"] for k in REF_KEYS for s in ("XX", "XY")):.2f}.</p>
+
+<p>This is not a power artifact — the null stratum is the larger one, with 133 XY donors
+against 92 XX. Nor is it a ploidy-encoding artifact: chromosome X dosages were audited in all
+four arms and are encoded identically, with hemizygous genotypes appearing as heterozygous in
+under 2.5% of XY calls in every arm against about 29% in XX.</p>
+
+<div class="callout">
+<p><strong>One mechanism accounts for all four rows.</strong> Pangenomic alignment resolves
+haplotype <em>diversity</em>. A hemizygous X carries one haplotype and offers nothing to
+resolve, which is why XY shows nothing. GRCh38's own X is poorly resolved, so the graph has no
+better material to work with there, which is why neither sex moves on GRCh38. Only T2T's
+complete X together with two X haplotypes gives the graph both the material and the
+opportunity. It is a three-way interaction between reference, aligner and sex, which is why no
+two-way analysis found it.</p>
+</div>
+
+<p>The practical consequence is that a whole-cohort chromosome X analysis in a mixed-sex study
+reports a diluted version of a much stronger effect in half the samples, and should be
+stratified. It also means the sex-stratified work that follows — built for an entirely
+different question — is not separable from the methods question after all.</p>
+
 <h2 id="interaction">Genotype×sex interaction, and why scale decides it</h2>
 
 <p>Does a variant's effect on expression differ between XX and XY donors? The direct test
@@ -931,6 +1227,22 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
 <p>Settled, in the sense of resting on the complete four-arm run tree:</p>
 
 <ul>
+  <li><strong>Most of the map does not move.</strong> An aligner swap leaves
+      {conc_calls_aligner:.1%} of association calls identical and a reference swap
+      {conc_calls_ref:.1%}, with {1 - gene_moved_hi:.0%} to {1 - gene_moved_lo:.0%} of genes
+      untouched. Nothing here overturns prior genetics.</li>
+  <li><strong>The genes that do move are not a random sample.</strong> They are
+      {gd_or_lo:.1f} to {gd_or_hi:.1f} times enriched for recurrent genomic-disorder regions,
+      {har_or_lo:.1f} to {har_or_hi:.1f} times for human accelerated regions, and consistently
+      for segmental duplication — twelve of twelve tests positive.</li>
+  <li>Method changes move the <em>estimate</em>, not the <em>precision</em>. The standard error
+      is essentially unchanged in every contrast, so these are not noise reductions; they are
+      changes in what is being measured.</li>
+  <li>{uni_excl:,} genes are testable on one reference only, and {uni_excl_egenes} of them are
+      eGenes — associations available on one reference and not the other, invisible to any
+      matched-gene comparison.</li>
+  <li>The chromosome X effect is specific to XX donors under pangenomic alignment on T2T
+      (odds {chrx_hit["odds_ratio"]:.2f}); the other seven cells of the design show nothing.</li>
   <li>The four arms agree closely on cis-eQTL <em>yield</em>, but not on the surface beneath
       it. Reference choice perturbs effect estimates about {mag_ratio:.0f} times more than
       aligner choice does, and that disagreement is spatially concentrated rather than
@@ -966,6 +1278,18 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       settle it.</li>
   <li><strong>The anti-conservative offset.</strong> var(z) above 1 is unexplained and
       systematic.</li>
+  <li><strong>There is no ground truth in this dataset.</strong> BrainVar is short-read
+      sequencing with no per-donor assemblies, so nothing here can say which arm is
+      <em>correct</em> — only which differ, and where. Every result on this page is a
+      description of difference, not a verdict on a reference.</li>
+  <li><strong>The yardstick is missing.</strong> Reference and aligner effects have not yet
+      been placed against a change nobody considers controversial. Repeating the analysis with
+      a different variant caller would say whether a reference swap perturbs a map more or
+      less than a routine tooling decision, and that comparison is the one a reader needs.</li>
+  <li><strong>Annotation versus sequence in the gene universes.</strong> A majority of
+      reference-exclusive genes are absent from the other reference's annotation entirely, so
+      annotation release explains much of the {uni_excl:,}-gene turnover. Separating that from
+      genuine accessibility needs a matched annotation, which does not exist here.</li>
   <li><strong>How heavy the null tail really is.</strong> The false-discovery estimate
       above assumes a normal tail, calibrated on the centre of the genome-wide
       distribution. Linkage disequilibrium correlates neighbouring windows, so the true

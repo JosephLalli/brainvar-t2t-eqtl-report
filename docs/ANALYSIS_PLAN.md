@@ -201,10 +201,38 @@ verification is a genuinely different claim from a magnitude change. *Cost: low.
 ### Asymmetric testability: what was never askable
 Every matched-variant comparison is blind to this by construction.
 
-**Characterise genes testable in one reference only.** `[NOT STARTED]` Universes are 18,273 (GRCh38)
-vs 18,114 (T2T), frozen natively and never intersected. Characterise the non-overlap: which
-genes, what biotype, what sequence context, are the T2T-only ones in newly resolved regions.
-*Cost: low. High value — nothing done so far can see this.*
+**Characterise genes testable in one reference only.** `[COMPLETE]` Run root
+`runs/gene_universe_asymmetry_20260816`.
+
+The headline is that the *net* difference hides the real one. GRCh38 tests 18,273 genes and
+T2T 18,114 — a net gap of 159 — but the universes are not nested: **667 genes are testable
+only on GRCh38 and 508 only on T2T**, a turnover of 1,175 genes that every matched-gene
+comparison in this project is structurally blind to.
+
+**278 of those exclusive genes are eGenes** (145 GRCh38-only, 133 T2T-only): real associations
+callable on one reference and unavailable on the other. Exclusive genes are *more* likely to be
+eGenes than shared ones — 26.2% for the T2T-only set and 21.7% for GRCh38-only, against 20.8%
+among shared genes.
+
+| | GRCh38-only | T2T-only | Shared |
+|---|---|---|---|
+| Genes | 667 | 508 | 17,606 |
+| eGenes | 145 (21.7%) | 133 (26.2%) | 20.8% |
+| Largest biotype | lncRNA 549, protein-coding 86 | lncRNA 287, protein-coding 159, rRNA 27 | — |
+| Absent from other annotation | 561 of 667 | 266 of 508 | — |
+| Mean segdup fraction | not measurable in T2T frame | **0.242** | 0.063 |
+| Any segdup overlap | — | **42.1%** | 27.8% |
+
+T2T-exclusive genes sit in sequence roughly **four times as duplicated** as shared genes, which
+is the same signature every other workstream has found. The 27 rRNA genes testable only on T2T
+are the expected consequence of T2T resolving the rDNA arrays GRCh38 leaves as gaps.
+
+*What the numbers cannot settle:* a majority of exclusive genes are absent from the other
+reference's annotation entirely (561 of 667; 266 of 508), so annotation release differences —
+RefSeq on GRCh38 against RefSeq Liftoff on T2T — account for much of the turnover rather than
+sequence accessibility. The residual (106 and 242 genes present in the other annotation but not
+testable) is the part attributable to the reference itself. Both figures should be quoted
+together; neither alone is honest.
 
 **Measure signal in newly accessible sequence.** `[NOT STARTED]` Define "fills in" concretely as: for each
 gene, the mean association signal (mean |z|, and count of variants at |z| > 4) among cis
