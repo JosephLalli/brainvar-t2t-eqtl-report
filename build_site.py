@@ -283,6 +283,28 @@ t_topk = table(
          "ties, so a gene crossing the boundary of a top-100 list need not reflect a "
          "meaningful change in evidence.")
 
+LEAD = DATA["lead_switching"]["by_contrast"]
+lead_ref_same_lo = min(LEAD[k]["share_same_lead"] for k in REF_KEYS)
+lead_ref_same_hi = max(LEAD[k]["share_same_lead"] for k in REF_KEYS)
+lead_wf_same_lo = min(LEAD[k]["share_same_lead"] for k in WF_KEYS)
+lead_wf_same_hi = max(LEAD[k]["share_same_lead"] for k in WF_KEYS)
+
+t_lead = table(
+    ["Contrast", "eGenes in both arms", "Same lead variant", "Lead changes",
+     "Median move", "Crosses the TSS"],
+    [[CONTRAST_LABEL[k], f'{LEAD[k]["genes_egene_in_both"]:,}',
+      f'<strong>{LEAD[k]["share_same_lead"]:.1%}</strong>',
+      f'{1 - LEAD[k]["share_same_lead"]:.1%}',
+      f'{LEAD[k]["median_move_bp"] / 1000:.1f} kb',
+      f'{LEAD[k]["share_crossing_tss"]:.0%}']
+     for k in CONTRAST_ORDER],
+    cls="numeric",
+    note="Restricted to genes that are eGenes in both arms, so differences in yield cannot "
+         "contribute. Leads are compared on normalised variant identity rather than on "
+         "coordinates. Distance is a weak proxy for whether two leads tag the same signal — "
+         "the measurement that would settle that is linkage disequilibrium between them, "
+         "which has not been computed.")
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -703,9 +725,34 @@ arms rank falls to about
 handful of the changes are genes the other arm cannot test at all, which is a different kind
 of difference and is taken up further down.</p>
 
-<p>Both numbers are true and they belong together. The map as a whole is stable; the shortlist
-drawn off the top of it is materially less so. The interesting question is what distinguishes
-the part that moves.</p>
+<p>There is a third level to this, and it is the one that matters most for what people do next.
+Restrict attention to genes that <em>both</em> arms call as eGenes — no yield difference, no
+ranking effect, the two arms agreeing that the gene has a signal — and ask whether they agree
+about which variant carries it.</p>
+
+{t_lead}
+
+<p>They agree {lead_ref_same_lo:.0%} to {lead_ref_same_hi:.0%} of the time under a reference
+swap and {lead_wf_same_lo:.0%} to {lead_wf_same_hi:.0%} under an aligner swap. <strong>Four
+times out of ten, two references that agree a gene has an eQTL nominate a different variant as
+its lead.</strong> These are not sub-resolution wobbles: only about an eighth of the moves are
+under a kilobase, the median is over ten, and a fifth to a quarter land on the other side of
+the transcription start site.</p>
+
+<div class="callout">
+<p><strong>What this does not establish.</strong> Whether the two leads tag the same underlying
+signal. A move of fourteen kilobases inside one haplotype block is cosmetic; the same move
+across a recombination boundary is a different causal hypothesis, and distance cannot tell them
+apart. The measurement that would is the linkage disequilibrium between the two leads, and it
+has not been computed. Until it is, read this as "the arms nominate different variants", not as
+"the arms find different signals" — the second is a stronger claim than the data currently
+supports.</p>
+</div>
+
+<p>All three numbers are true and they belong together. The map as a whole is stable, the
+shortlist drawn off the top of it is less so, and the causal candidate within a shared hit is
+less stable still. Which raises the question the rest of this addresses: what distinguishes the
+part that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -1273,6 +1320,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {topk_ref_lo} to {topk_ref_hi} of the top hundred genes and an aligner swap
       {topk_wf_hi}, so the practical consequence of the method choice is larger than the
       genome-wide correlation implies.</li>
+  <li><strong>Agreeing on the gene is not agreeing on the variant.</strong> Among genes both
+      arms call as eGenes, a reference swap nominates a different lead variant
+      {1 - lead_ref_same_hi:.0%} to {1 - lead_ref_same_lo:.0%} of the time — a median move of
+      more than ten kilobases. Whether those leads tag the same signal is unresolved.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       {gd_or_lo:.1f} to {gd_or_hi:.1f} times enriched for recurrent genomic-disorder regions,
       {har_or_lo:.1f} to {har_or_hi:.1f} times for human accelerated regions, and consistently

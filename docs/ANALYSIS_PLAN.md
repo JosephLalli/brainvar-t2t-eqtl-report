@@ -269,11 +269,34 @@ known-difficult region means something very different from one in ordinary seque
 that stratification the comparison is not interpretable. *Cost: medium.*
 
 ### Downstream consequence: does the conclusion change
-**Measure lead-variant switching by LD.** `[NOT STARTED]` For genes that are eGenes in both arms,
-report **LD (r²) between arm A's lead and arm B's lead** as the primary metric, plus physical
-distance between the two leads and each lead's signed distance from the TSS. A lead that moves
-within an LD block is a cosmetic change; one that moves to an independent block changes the
-causal hypothesis. *Cost: medium — needs an LD reference; use the arm's own genotypes.*
+**Measure lead-variant switching by LD.** `[PARTIAL — distance stage complete]`
+Run root `runs/lead_variant_switching_20260816`.
+
+Restricted to genes that are eGenes in **both** arms, so yield differences cannot contribute.
+Leads are placed in the common LiftoverIndel-normalised frame before comparison.
+
+| Contrast | Same lead variant | Lead changes | Median move | Crosses the TSS |
+|---|---|---|---|---|
+| T2T − GRCh38 · linear | **58.4%** | 41.6% | 14.3 kb | 26% |
+| T2T − GRCh38 · graph | **59.3%** | 40.7% | 14.4 kb | 23% |
+| graph − linear · GRCh38 | 78.5% | 21.5% | 11.2 kb | 20% |
+| graph − linear · T2T | 76.2% | 23.8% | 13.0 kb | 19% |
+
+This is the most consequential result for downstream work so far. Two arms can agree that a
+gene has an eQTL, agree closely on its effect size, and still **nominate a different variant
+four times out of ten** under a reference swap. For fine-mapping and colocalisation the
+identity of the lead is not an incidental detail — it is the result.
+
+Only about an eighth of the moves are under a kilobase, so these are not sub-resolution
+jitter; the median move is over ten kilobases and a fifth to a quarter cross to the other side
+of the transcription start site.
+
+*What this does not yet establish, and the page must say so:* whether the two leads tag the
+same underlying signal. A move of 14 kb inside a strong haplotype block is cosmetic; the same
+move across a recombination boundary is a different causal hypothesis. **Linkage disequilibrium
+between the two leads is the measurement that separates them, and it has not been computed.**
+Distance is a weak proxy and is labelled as one. Completing this needs the genotype matrices
+and is the remaining stage of this workstream.
 
 **Count credible sets per gene.** `[NOT STARTED]` Number of SuSiE credible sets per gene, and
 credible-set membership overlap, per arm. Preferred over conditional/stepwise analysis on cost

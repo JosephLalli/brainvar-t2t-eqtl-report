@@ -272,9 +272,34 @@ arms rank falls to about
 handful of the changes are genes the other arm cannot test at all, which is a different kind
 of difference and is taken up further down.</p>
 
-<p>Both numbers are true and they belong together. The map as a whole is stable; the shortlist
-drawn off the top of it is materially less so. The interesting question is what distinguishes
-the part that moves.</p>
+<p>There is a third level to this, and it is the one that matters most for what people do next.
+Restrict attention to genes that <em>both</em> arms call as eGenes — no yield difference, no
+ranking effect, the two arms agreeing that the gene has a signal — and ask whether they agree
+about which variant carries it.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>eGenes in both arms</th><th>Same lead variant</th><th>Lead changes</th><th>Median move</th><th>Crosses the TSS</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>2,540</td><td><strong>58.4%</strong></td><td>41.6%</td><td>14.3 kb</td><td>26%</td></tr><tr><td>T2T − GRCh38 · graph</td><td>2,516</td><td><strong>59.3%</strong></td><td>40.7%</td><td>14.4 kb</td><td>23%</td></tr><tr><td>graph − linear · GRCh38</td><td>2,915</td><td><strong>78.5%</strong></td><td>21.5%</td><td>11.2 kb</td><td>20%</td></tr><tr><td>graph − linear · T2T</td><td>2,940</td><td><strong>76.2%</strong></td><td>23.8%</td><td>13.0 kb</td><td>19%</td></tr></tbody></table></div><p class="tnote">Restricted to genes that are eGenes in both arms, so differences in yield cannot contribute. Leads are compared on normalised variant identity rather than on coordinates. Distance is a weak proxy for whether two leads tag the same signal — the measurement that would settle that is linkage disequilibrium between them, which has not been computed.</p>
+
+<p>They agree 58% to 59% of the time under a reference
+swap and 76% to 78% under an aligner swap. <strong>Four
+times out of ten, two references that agree a gene has an eQTL nominate a different variant as
+its lead.</strong> These are not sub-resolution wobbles: only about an eighth of the moves are
+under a kilobase, the median is over ten, and a fifth to a quarter land on the other side of
+the transcription start site.</p>
+
+<div class="callout">
+<p><strong>What this does not establish.</strong> Whether the two leads tag the same underlying
+signal. A move of fourteen kilobases inside one haplotype block is cosmetic; the same move
+across a recombination boundary is a different causal hypothesis, and distance cannot tell them
+apart. The measurement that would is the linkage disequilibrium between the two leads, and it
+has not been computed. Until it is, read this as "the arms nominate different variants", not as
+"the arms find different signals" — the second is a stronger claim than the data currently
+supports.</p>
+</div>
+
+<p>All three numbers are true and they belong together. The map as a whole is stable, the
+shortlist drawn off the top of it is less so, and the causal candidate within a shared hit is
+less stable still. Which raises the question the rest of this addresses: what distinguishes the
+part that moves.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -919,6 +944,10 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       19 to 22 of the top hundred genes and an aligner swap
       5, so the practical consequence of the method choice is larger than the
       genome-wide correlation implies.</li>
+  <li><strong>Agreeing on the gene is not agreeing on the variant.</strong> Among genes both
+      arms call as eGenes, a reference swap nominates a different lead variant
+      41% to 42% of the time — a median move of
+      more than ten kilobases. Whether those leads tag the same signal is unresolved.</li>
   <li><strong>The genes that do move are not a random sample.</strong> They are
       2.9 to 9.1 times enriched for recurrent genomic-disorder regions,
       1.7 to 1.9 times for human accelerated regions, and consistently

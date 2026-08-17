@@ -5,14 +5,26 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Add the variant-caller axis.** The yardstick, and the most expensive remaining step. Re-run
-the genotype-to-association path with HaplotypeCaller in place of DeepVariant on the two linear
-arms, then score `hc_minus_dv_grch38` and `hc_minus_dv_t2t` through the identical window and
-gene pipelines. Inputs are verified present and identically processed. Restrict to the flagged
-windows first to keep the first pass cheap.
+**Finish lead-variant switching by computing LD between the two leads.** The distance stage is
+complete and shows that a reference swap changes the lead variant for 41% of genes that are
+eGenes in both arms. Whether that matters depends entirely on whether the two leads tag the
+same signal, which distance cannot answer. Compute r² between each pair of leads from the
+positive arm's genotype matrix (`runs/association_genotypes_v4_20260808`), for the pairs where
+both variants are present there.
 
-Then **measure lead-variant switching by LD**, **count credible sets per gene** (locate and
-validate the SuSiE outputs first), and **measure top-k rank concordance**.
+Then, once `runs/caller_axis_af_20260816` finishes, fold the caller yardstick into the page.
+
+### After that
+
+- **Add the variant-caller axis at the association level.** The allele-frequency stage gives
+  the yardstick cheaply; scoring `hc_minus_dv_*` through the same window and gene pipelines as
+  the other axes needs a genotype derivation and association run, which is gated and expensive.
+- **Count credible sets per gene.** Locate and validate the SuSiE outputs first — the
+  candidates are e36-era and may not correspond to the current v4/k35 arms.
+- **Test ancestry-dependence of discordance.**
+- **Measure signal in newly accessible sequence**, and **test whether arm-exclusive variants
+  carry signal**, stratified by region difficulty.
+- **Test whether GWAS colocalization changes.** Last, and dependent on the two above.
 
 ## Complete
 
@@ -29,6 +41,7 @@ validate the SuSiE outputs first), and **measure top-k rank concordance**.
 | Allele-frequency concordance | Median \|ΔAF\| exactly 0 in all four contrasts. Exactly equal at 70% (reference) and 82–83% (aligner); within 0.01 at 96.2% and 98.4%. The **1.6–3.9% beyond 0.01 is the caution map**, unsigned. Worst chromosomes (chr19, chr22, chr17, chrX, chr6, chr21) match the eQTL-derived hotspots, from an instrument sharing no statistics with them. | `effect_precision_and_af_20260816` |
 | Gene universe | The 159-gene net difference between universes hides a **1,175-gene turnover**: 667 genes testable only on GRCh38, 508 only on T2T, and **278 of them are eGenes**. Exclusive genes are more often eGenes than shared ones (26.2% / 21.7% vs 20.8%). T2T-exclusive genes are ~4x as duplicated as shared genes. Majority are absent from the other annotation entirely, so annotation release explains much of the turnover. | `gene_universe_asymmetry_20260816` |
 | Top-k concordance | Genome-wide stability does not carry to the head of the ranking. A reference swap changes **19–22 of the top 100** genes (rank correlation 0.83); an aligner swap changes 5 (0.96). Five of the reference-swap changes are genes not testable in the other arm at all. | `topk_rank_concordance_20260816` |
+| Lead-variant switching | Among genes that are eGenes in **both** arms, a reference swap changes the lead variant for **41%** and an aligner swap for 22–24%. Median move 11–14 kb; a fifth to a quarter cross the TSS. Whether the two leads tag the same signal is unresolved — LD between them is not yet computed. | `lead_variant_switching_20260816` |
 
 ## Known risks
 
