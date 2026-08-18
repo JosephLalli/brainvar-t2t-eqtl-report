@@ -5,30 +5,39 @@ session as the work. A run root without a line here is invisible to the next con
 
 ## Next action
 
-**Every workstream on the plan is now complete or explicitly deferred.** The remaining items
-are extensions rather than gaps:
+**Every workstream on the plan is complete or explicitly deferred, and colocalisation is now
+Bayesian rather than a membership proxy.** What remains:
 
-- the variant-caller axis exists at the allele-frequency stage; carrying it to the association
-  stage needs a gated genotype derivation and association run;
-- the background-noise workstream's Hardy-Weinberg and allele-balance stages need passes over
-  the callsets;
-- colocalisation is credible-set membership; a Bayesian version needs per-trait genome-wide
-  summary statistics, which would also remove the catalog ascertainment asymmetry noted below.
+- the page. It carries fifteen analyses across eighteen sections and about 14,000 words, and a
+  **proposed reordering sits under Page status below, awaiting a decision.** That is a
+  presentation change, not another result;
+- the variant-caller axis exists at the allele-frequency stage only;
+- the background-noise workstream's Hardy-Weinberg and allele-balance stages.
 
-The natural next piece of work is the page: it now carries eleven analyses and would benefit
-from a structural read rather than another result.
+**The open scientific question is now a specific one.** At the colocalisation endpoint the
+project's central prediction fails: psychiatric and neurodevelopmental colocalisations change
+*less* under a reference swap than other traits (OR 0.70, p = 0.014), and that survives both a
+source check and a confidence check. The result is bounded by a selection effect the analysis
+cannot see past — colocalisation is only testable where a GWAS has already resolved a clean
+signal, so the loci where representation choice might bite hardest are excluded by
+construction. Testing that would mean asking whether the discordance windows are depleted of
+GWAS signal in the first place, which is a tractable question against the existing run tree
+and is the single most informative thing left to do.
 
 ### After that
 
+- **Test whether the discordance windows carry GWAS signal at all.** If they are depleted, the
+  colocalisation negative is a selection effect rather than a refutation, and that is
+  measurable with what is already on disk.
 - **Add the variant-caller axis at the association level.** The allele-frequency stage gives
-  the yardstick cheaply; scoring `hc_minus_dv_*` through the same window and gene pipelines as
-  the other axes needs a genotype derivation and association run, which is gated and expensive.
-- **Count credible sets per gene.** Locate and validate the SuSiE outputs first — the
-  candidates are e36-era and may not correspond to the current v4/k35 arms.
-- **Test ancestry-dependence of discordance.**
-- **Measure signal in newly accessible sequence**, and **test whether arm-exclusive variants
-  carry signal**, stratified by region difficulty.
-- **Test whether GWAS colocalization changes.** Last, and dependent on the two above.
+  the yardstick cheaply; scoring `hc_minus_dv_*` through the same window and gene pipelines
+  needs a genotype derivation and association run, which is gated and expensive.
+- **Finish the background-noise workstream**: Hardy-Weinberg and allele-balance stages need
+  passes over the callsets.
+- **A SuSiE-based colocalisation**, which would relax the single-causal-variant assumption at
+  the cost of needing an LD reference matched to each GWAS. Worth it only if the multi-signal
+  loci turn out to matter; the fine-mapping says 11-12% of genes carry more than one credible
+  set, so they are not rare.
 
 ## Complete
 
@@ -54,7 +63,12 @@ from a structural read rather than another result.
 | Background noise per arm | **No arm is measurably less noisy.** Median standard error at matched allele frequency is identical to the fourth decimal across all four arms; the largest ratio is T2T carrying 0.8% *larger* errors than GRCh38 in duplicated sequence. Confirms and extends the decomposition: these methods do not buy precision, anywhere. | `background_noise_by_arm_20260816` |
 | SuSiE fine-mapping | 12,189 gene fine-mappings across four arms in 40 GPU-minutes; 2,540–2,602 genes with credible sets per arm, 1.11–1.12 sets per gene, median set size 7. | `susie_finemapping_v4_k35_20260817` |
 | Credible-set comparison | **Fine-mapping survives at the level it reports.** Sets overlap for 96–98% of shared genes (median Jaccard 0.82 reference, 0.97 aligner), but the top variant within them differs **39%** of the time under a reference swap and 22% under an aligner swap. A credible set is robust to method choice; a named causal variant is not. | `credible_set_comparison_20260817` |
-| GWAS colocalisation | **Over half of colocalisations change under a reference swap** (54.8% of the union; 19% for an aligner swap) — far more than credible-set overlap alone suggests, because colocalisation is a conjunction. Psychiatric and neurodevelopmental traits change most, cancer and neurodegenerative least. **Direction is confounded** by GRCh38-era catalog ascertainment and must not be quoted. | `gwas_coloc_20260817` |
+| Reference-allele orientation | **"The reference allele" is a property of a choice, not of a variant.** Normalising a GRCh38 variant into the common T2T frame swaps REF and ALT for **30.08%** of them (30.07% in the graph arm, exactly 0% in both T2T arms). Only 0.38% needed indel realignment — the correction the field worries about is small, the one it does not discuss is large. Consequence: GWAS-to-credible-set matching must use **unordered** allele pairs. | `four_arm_variant_identity_comparison_20260811` |
+| GWAS variant placement | **The old placement was the bug, not T2T.** The 2022 GWAS VCF placed only 39.9% of catalog rsIDs; LiftoverIndel from the catalog's own GRCh38 coordinates places 97.7%, and an independent native-T2T dbSNP155 placement agrees with it on the exact base for **99.91%** of 331,177 shared rsIDs. Dropout bias toward divergent regions was predicted but is weak (OR 1.09). | `gwas_variant_placement_crosscheck_20260817` |
+| GWAS colocalisation (Bayesian) | **Real `coloc.abf`, genome-wide, 40 GWAS in 4 arms.** A reference swap changes 31.8% of calls and an aligner swap 4.0%; among confident calls, 12.2% and 1.6%. Median |ΔPP4| 0.0022 / 0.00005. **All four arms give 926–933 colocalisations** — the direction confound seen under the membership proxy was catalog ascertainment and vanishes with full summary statistics. **The thesis prediction fails here:** brain traits change *least* (OR 0.70, p = 0.014), robust to source (p = 1) and not explained by confidence. Bounded by a selection effect: only loci a GWAS has already resolved are testable. | `gwas_coloc_bayesian_20260817` |
+| GWAS colocalisation (membership proxy) | **Superseded.** Credible-set membership overstated instability 2–5× (56.6% vs 31.8% reference; 21.0% vs 4.0% aligner) and is biased upward, not merely noisier. Retained only to quantify how far a variant-overlap proxy departs from the posterior it approximates. | `gwas_coloc_v2_20260817` |
+
+| Selection-effect tests | **The regional claim survives; the trait claim is untestable here.** Colocalisation calls change far more inside FDR-flagged discordance windows (reference 37.1% vs 29.9%, OR 1.38 p=0.028; aligner 8.0% vs 2.5%, **OR 3.44 p=0.00028**) — the genome-wide test was diluting this. The apparent brain-trait deficit (OR 0.70, p=0.014) survives checks on source (p=1), call confidence, and coverage (adjusted OR 0.68, p=0.010) but **not on GWAS signal strength**: brain studies are ~3 orders of magnitude weaker in-window (median 10⁻⁶·² vs 10⁻⁹·⁴), and matched on signal the difference is n.s. (OR 0.80, p=0.15; joint with coverage 0.78, p=0.12). **The disease-gene-set test is retracted** as circular. | `gwas_coloc_bayesian_20260817`, `neuro_gene_sets_20260817` |
 
 ## Known risks
 
@@ -79,19 +93,39 @@ from a structural read rather than another result.
 
 ## Page status
 
-**Published.** `main` and `hotspot-section` are both at `abe4ad2`; the live site
-(`josephlalli.github.io/brainvar-t2t-eqtl-report`) serves it and has been verified to carry the
-new title and none of the removed material. Publishing is a fast-forward of `main` to the
-working branch and a push — **do not merge or force-push, and ask before publishing.**
+Publishing is a fast-forward of `main` to the working branch and a push — **do not merge or
+force-push, and ask before publishing.**
 
-Already live: the missing-genotype narrative removed and the page retitled *Mapping Brain
-eQTLs on Two Reference Genomes*; the "replication" framing replaced with the factorial
-reference-by-aligner reading; the genome-wide FDR and directional sections with their figures.
+The branch is at `8f9730c` with uncommitted work in `build_site.py`, `index.html` and both
+docs. The page is ~110 KB across **eighteen `h2` sections and about 13,000 words**, and every
+analysis on the plan is now written into it — including the concordance baseline, gene-class
+enrichments, MHC, chrX-as-XX-specific, ancestry, the genome-wide FDR and directional sections,
+credible sets, and colocalisation. *(An earlier version of this note listed several of those as
+"not yet on the page"; that was stale and is corrected here.)*
 
-**Not yet on the page**, though the analysis is complete and in the run tree: the concordance
-baseline, the gene-class enrichments, the MHC result, the chrX result, and the aligner-versus-
-reference portability asymmetry. These are held back until the framing rewrite below. The chrX
-result is now resolved and must be written as XX-specific.
+### Proposed structural revision (not yet applied — needs a decision)
+
+A section-by-section read says the page has outgrown its running order rather than its content.
+Three specific problems:
+
+1. **`hotspots` is 3,239 words, 3 figures and 6 tables** — a quarter of the page in one
+   section. It carries the genome-wide FDR sweep, the directional split and the regional
+   detail, which are three separable arguments.
+2. **The sex material is fragmented into five consecutive short sections** — `chrx`,
+   `interaction`, `stratified`, `contrast`, `direction`, 2,061 words between them — with
+   `ancestry` sitting in the middle of the run and breaking it.
+3. **The argument peaks in the middle.** `coloc` ("What reaches a paper") is the endpoint the
+   whole page builds toward, and nine sections follow it.
+
+The order that matches the agreed framing below would be: setup → *most genetics is
+unaffected* (concordance, yardstick) → *but not uniformly* (mechanism, hotspots) → *and the
+exceptions are the interesting regions* (classes) → *some genes are not even askable*
+(universe) → *and this lands unevenly on people* (ancestry, then the sex cluster together) →
+*and here is what it does to a published claim* (coloc) → standing → methods. That moves
+`coloc` to the end and `universe` earlier, and groups ancestry with sex.
+
+This is a presentation judgement rather than a factual correction, so it is recorded here
+rather than applied.
 
 **Framing the page must adopt** (agreed with J.L., 2026-08-16):
 

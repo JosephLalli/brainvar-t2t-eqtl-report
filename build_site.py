@@ -8,6 +8,7 @@ transcribed by hand, so the text cannot drift from the run tree.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -419,6 +420,8 @@ t_access = table(
          "for that gene — only that it cannot find that variant.")
 
 CSET = DATA["credible_sets"]["by_contrast"]
+SP = DATA["credible_sets"]["susie_parameters"]
+SUS = {"pcs": 35, "fdr": 0.05}
 cs_top_ref = min(CSET[k]["share_same_top_variant"] for k in REF_KEYS)
 cs_top_wf = min(CSET[k]["share_same_top_variant"] for k in WF_KEYS)
 cs_ovl_ref = min(CSET[k]["share_sets_overlapping"] for k in REF_KEYS)
@@ -442,41 +445,109 @@ t_credible = table(
          f'reference-unique variants is compared on the remainder and disagreement is '
          f'understated.')
 
+def pow10(x: float) -> str:
+    """Render an exact power of ten as one, rather than as 1e-04."""
+    e = round(math.log10(x))
+    return (f"10<sup>&minus;{abs(e)}</sup>" if abs(x - 10.0 ** e) < 1e-15 * x
+            else f"{x:.0e}")
+
+
 COL = DATA["coloc"]["by_contrast"]
 COLA = DATA["coloc"]["per_arm"]
+CPR = DATA["coloc"]["priors"]
+CPV = DATA["coloc"]["prior_variance"]
+CFL = DATA["coloc"]["filters"]
+CTC = DATA["coloc"]["trait_counts"]
+CTOT = DATA["coloc"]["totals"]
+PROX = DATA["coloc"]["membership_proxy"]["by_contrast"]
 col_ref = max(COL[k]["share_of_union_changed"] for k in REF_KEYS)
 col_wf = max(COL[k]["share_of_union_changed"] for k in WF_KEYS)
+col_ref_strong = max(COL[k]["strong_share_changed"] for k in REF_KEYS)
+col_wf_strong = max(COL[k]["strong_share_changed"] for k in WF_KEYS)
+prox_ref = max(PROX[k]["share_of_union_changed"] for k in REF_KEYS)
+prox_wf = max(PROX[k]["share_of_union_changed"] for k in WF_KEYS)
+col_n_traits = sum(CTC.values())
+col_arm_lo = min(COLA[c]["colocalised_pp4_0.8"] for c in CELLS)
+col_arm_hi = max(COLA[c]["colocalised_pp4_0.8"] for c in CELLS)
+col_gene_lo = min(COLA[c]["genes_tested"] for c in CELLS)
+col_gene_hi = max(COLA[c]["genes_tested"] for c in CELLS)
 
 t_coloc = table(
-    ["Contrast", "Shared", "Only in the first arm", "Only in the second",
-     "Union that changes"],
+    ["Contrast", "Both arms", "Only the first", "Only the second",
+     "Calls that change", "Confident calls that change", "Median |&Delta;PP4|"],
     [[CONTRAST_LABEL[k], f'{COL[k]["shared"]:,}', f'{COL[k]["only_positive"]:,}',
       f'{COL[k]["only_negative"]:,}',
-      f'<strong>{COL[k]["share_of_union_changed"]:.1%}</strong>']
+      f'<strong>{COL[k]["share_of_union_changed"]:.1%}</strong>',
+      f'<strong>{COL[k]["strong_share_changed"]:.1%}</strong>',
+      f'{COL[k]["median_abs_pp4_difference"]:.5f}']
      for k in CONTRAST_ORDER],
     cls="numeric",
-    note="A colocalisation is a gene, GWAS variant and trait where a genome-wide significant "
-         "variant is a member of that gene's credible set. Trait and rsID come from the GWAS "
-         "Catalog; the T2T coordinate for that rsID comes from a T2T-native GWAS VCF, so the "
-         "two sources are joined on rsID and no liftover is performed.")
+    note=f'A colocalisation is a gene and trait whose posterior probability of one shared '
+         f'causal variant reaches {DATA["coloc"]["pp4_call"]:.0%}. "Confident calls" '
+         f'restricts to pairs already above PP4 {DATA["coloc"]["pp4_strong"]:.0%} in at '
+         f'least one arm, where a flip is a claim someone would have made rather than a '
+         f'borderline case crossing a line.')
 
-_grp = COL["t2t_minus_grch38_linear"]["trait_groups"]
-_rows = []
-for _g in sorted({k for d in _grp.values() for k in d}):
-    _sh = _grp["shared"].get(_g, 0)
-    _ch = _grp["only_positive"].get(_g, 0) + _grp["only_negative"].get(_g, 0)
-    if _sh + _ch >= 20:
-        _rows.append((_g, _sh, _ch, _ch / (_sh + _ch)))
-_rows.sort(key=lambda r: -r[3])
-
-t_coloc_traits = table(
-    ["Trait area", "Colocalisations shared", "Changed", "Share changed"],
-    [[g.replace("gastrointestinal", "gastrointestinal").capitalize(), f"{sh:,}", f"{ch:,}",
-      f"<strong>{frac:.0%}</strong>"] for g, sh, ch, frac in _rows],
+t_coloc_proxy = table(
+    ["Contrast", "Credible-set membership", "coloc.abf", "Confident coloc.abf"],
+    [[CONTRAST_LABEL[k], f'{PROX[k]["share_of_union_changed"]:.1%}',
+      f'{COL[k]["share_of_union_changed"]:.1%}',
+      f'<strong>{COL[k]["strong_share_changed"]:.1%}</strong>']
+     for k in CONTRAST_ORDER],
     cls="numeric",
-    note="Reference swap within the linear workflow. Trait areas are coarse keyword matches "
-         "against the reported and mapped trait, and a trait can fall into more than one, so "
-         "this is a tendency rather than a test.")
+    note="The same four contrasts scored by variant overlap and by a posterior. The proxy "
+         "asks whether a GWAS index variant falls inside a credible set: it has no model of "
+         "the GWAS signal and turns on a single variant's membership.")
+
+_g = COL["t2t_minus_grch38_linear"]["by_trait_group"]
+_ga = COL["graph_minus_linear_grch38"]["by_trait_group"]
+_grows = sorted(_g.items(), key=lambda kv: -kv[1]["share_changed"])
+t_coloc_traits = table(
+    ["Trait area", "Studies", "Pairs tested", "Called in either arm", "Reference swap",
+     "Aligner swap"],
+    [[k.capitalize(), f'{CTC.get(k, 0)}', f'{v["tested"]:,}', f'{v["union"]:,}',
+      f'<strong>{v["share_changed"]:.1%}</strong>',
+      (f'{_ga[k]["share_changed"]:.1%}' if k in _ga else "&mdash;")]
+     for k, v in _grows],
+    cls="numeric",
+    note="Trait areas are assigned per study rather than by keyword match. The "
+         "called-in-either counts are modest, so the ordering itself is a tendency; the "
+         "pooled brain-against-other test quoted in the text is the claim being made.")
+
+AO = DATA["allele_orientation"]
+_g38 = ("linear_grch38_dv", "graph_grch38_dv")
+flip_lin = AO["linear_grch38_dv"]["flipped_share"]
+flip_gph = AO["graph_grch38_dv"]["flipped_share"]
+flip_n = AO["linear_grch38_dv"]["flipped"]
+realign_hi = max(AO[c]["realigned_share"] for c in _g38)
+
+COLS = DATA["coloc"]["stratified"]
+COLC = DATA["coloc"]["coverage"]
+COLJ = DATA["coloc"]["coverage_adjusted"]
+_sg = DATA["coloc"]["signal_adjusted"]["t2t_minus_grch38_linear"]
+SIG = {
+    "signal_median_brain": _sg["signal_median_brain"],
+    "signal_median_other": _sg["signal_median_other"],
+    "signal_or": _sg["signal_only"]["odds_ratio"],
+    "signal_lo": _sg["signal_only"]["ci_low"],
+    "signal_hi": _sg["signal_only"]["ci_high"],
+    "signal_p": _sg["signal_only"]["p"],
+    "joint_or": _sg["signal_by_coverage"]["odds_ratio"],
+    "joint_lo": _sg["signal_by_coverage"]["ci_low"],
+    "joint_hi": _sg["signal_by_coverage"]["ci_high"],
+    "joint_p": _sg["signal_by_coverage"]["p"],
+}
+
+t_coloc_strat = table(
+    ["Contrast", "Inside flagged windows", "Outside", "Odds ratio", "p"],
+    [[CONTRAST_LABEL[k], f'{v["flagged_changed"]}/{v["flagged_union"]} = '
+      f'<strong>{v["flagged_rate"]:.1%}</strong>',
+      f'{v["unflagged_changed"]}/{v["unflagged_union"]} = {v["unflagged_rate"]:.1%}',
+      f'<strong>{v["odds_ratio"]:.2f}</strong>', f'{v["fisher_p"]:.2g}']
+     for k, v in COLS.items()],
+    cls="numeric",
+    note="Each gene is placed by the variant nearest its transcription start, and a window "
+         "counts as flagged when any contrast marks it discordant at 5% FDR.")
 
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
@@ -755,24 +826,23 @@ changes when you swap the aligner, and where on the genome the two disagree.">
 </header>
 
 <nav class="toc">
-  <p>Contents</p>
   <ol>
     <li><a href="#design">The question and the four arms</a></li>
     <li><a href="#pcs">How many expression PCs?</a></li>
     <li><a href="#maps">The four-arm cis-eQTL maps</a></li>
     <li><a href="#concordance">What a method change leaves alone</a></li>
-    <li><a href="#mechanism">What kind of difference it is</a></li>
     <li><a href="#yardstick">How big is that, really?</a></li>
+    <li><a href="#mechanism">What kind of difference it is</a></li>
     <li><a href="#hotspots">Where the references disagree</a></li>
     <li><a href="#classes">What the moved regions are made of</a></li>
-    <li><a href="#coloc">What reaches a paper</a></li>
     <li><a href="#universe">The genes that were never askable</a></li>
-    <li><a href="#chrx">Chromosome X, and why sex decides it</a></li>
     <li><a href="#ancestry">Ancestry, and who a reference represents</a></li>
+    <li><a href="#chrx">Chromosome X, and why sex decides it</a></li>
     <li><a href="#interaction">Genotype×sex interaction, and why scale decides it</a></li>
     <li><a href="#stratified">Sex-stratified maps</a></li>
     <li><a href="#contrast">Contrasting effect sizes between sexes</a></li>
     <li><a href="#direction">Is the XX-stronger excess real?</a></li>
+    <li><a href="#coloc">What reaches a paper</a></li>
     <li><a href="#standing">What is settled, and what is not</a></li>
     <li><a href="#methods">Methods and reproducibility</a></li>
   </ol>
@@ -941,6 +1011,32 @@ of these", and that is what fine-mapping reports and what colocalisation takes a
 four arms were fine-mapped with SuSiE — {DATA["credible_sets"]["gene_finemappings"]:,} gene
 fine-mappings — so the sets can be compared directly.</p>
 
+<div class="callout">
+<p><strong>How the fine-mapping was done, because the settings decide what a credible set
+means.</strong> SuSiE was run through <code>tensorqtl.susie</code> on each arm separately, over
+that arm's own eGenes at {SUS["fdr"]:.0%} FDR from its own permutation pass, with
+{SUS["pcs"]} expression PCs, a ±{SP["window"] // 10**6} Mb cis window and variants at MAF ≥
+{SP["maf_threshold"]}. Four settings shape the output directly:</p>
+<ul>
+  <li><strong>L = {SP["L"]}</strong> caps the number of independent signals a gene may have.
+      A gene at the cap is censored rather than resolved, which is why the count of sets per
+      gene is reported as a comparison between arms and not as a biological quantity.</li>
+  <li><strong>Coverage {SP["coverage"]:.0%}</strong> sets how much posterior mass a set must
+      contain. Raising it enlarges every set; the overlap statistics below would rise with it
+      and the top-variant agreement would not, so the two are not interchangeable summaries.</li>
+  <li><strong>min_abs_corr = {SP["min_abs_corr"]}</strong> discards sets whose members are not
+      mutually correlated at least this much — SuSiE's purity filter, which removes sets that
+      are an artefact of the algorithm splitting one signal rather than a real second one.</li>
+  <li><strong>Convergence</strong> at tolerance {SP["tol"]} within {SP["max_iter"]} iterations.</li>
+</ul>
+<p>Two of these matter for reading the comparison specifically. Because each arm fine-maps
+<em>its own</em> eGenes, the raw per-arm counts are conditional on that arm's eGene selection
+and are only comparable on the shared gene set used here. And because missing dosages reach
+tensorqtl as a <code>-9</code> sentinel rather than as IEEE NaN, the same boundary adapter the
+association runs use is applied first; without it the fine-mapping would silently drop
+variants, which is the bug this project already found once.</p>
+</div>
+
 {t_credible}
 
 <p><strong>Fine-mapping survives the method change at the level it reports.</strong> For
@@ -967,8 +1063,45 @@ about four times in ten between references.</p>
 <p>All five numbers are true and they belong together. The map as a whole is stable; the
 shortlist drawn off the top of it is less so; the nominated variant within a shared hit changes
 often but usually cosmetically; a small real remainder is a different hypothesis altogether;
-and the credible set that fine-mapping reports mostly survives. Which raises the question the
-rest of this addresses: what distinguishes the part that moves.</p>
+and the credible set that fine-mapping reports mostly survives. What none of them is, yet, is
+anchored: a correlation of 0.94 means nothing until it is set against a change whose size is
+already agreed on. That comes first, and then the question the rest of this page addresses —
+what distinguishes the part that moves.</p>
+
+<h2 id="yardstick">How big is that, really?</h2>
+
+<p>Every number so far is unanchored. A correlation of {conc_r_ref:.2f}, or
+{1 - DATA["mechanism"]["by_contrast"]["t2t_minus_grch38_linear"]["allele_frequency"]["share_within_0.01"]:.1%}
+of sites with a shifted allele frequency, means nothing without knowing what a change of
+comparable weight looks like. The variant caller supplies that. Swapping DeepVariant for
+HaplotypeCaller is a decision most groups make without discussion, and it can be measured on
+exactly the same instrument.</p>
+
+{fig("yardstick", "Bar chart comparing the share of sites with shifted allele frequency across reference, aligner and caller swaps, with the caller bars roughly twice the height of the others", "The three method axes on one footing: same donors, same chromosomes, same stage. Changing the variant caller moves allele frequencies more than twice as much as changing the reference genome.")}
+
+{t_yardstick}
+
+<p><strong>A reference swap is the smallest of the three changes.</strong> It shifts the
+frequency of {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of sites, against
+{DATA["yardstick"]["mean_by_axis"]["aligner"]:.2%} for an aligner swap and
+{DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a caller swap — the caller being
+{DATA["yardstick"]["ratio_to_aligner"]["caller"]:.1f} times the aligner and
+{DATA["yardstick"]["ratio_to_aligner"]["caller"] / DATA["yardstick"]["ratio_to_aligner"]["reference"]:.1f}
+times the reference. Anyone comfortable with their choice of variant caller has already
+accepted a larger perturbation than the one this page is about.</p>
+
+<div class="callout">
+<p><strong>The caveat is the finding, not a footnote.</strong> A cross-reference comparison can
+only be made on variants that carry a unique identity in <em>both</em> references — about 1.9
+million of the roughly 10 million in each callset. Same-reference comparisons use all of them.
+So the reference axis above is measured <em>only among variants both references can
+represent</em>, and the variants only one reference can represent are excluded entirely.</p>
+<p>Read the two halves together and they say something sharper than either alone. Where two
+references can both see a variant, they agree about it better than two aligners do. The
+reference's distinctive effect is not that it measures shared variants differently — it is
+<em>what it can see at all</em>. That is what the gene universes and the arm-exclusive variants
+further down are measuring, and it is where the reference change actually lives.</p>
+</div>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -1055,41 +1188,6 @@ higher or the lower frequency.</p>
 most frequency discordance are chr19, chr22, chr17, chrX, chr6 and chr21 — the same set the
 association analysis identifies below, arrived at from genotype frequencies alone.</p>
 
-<h2 id="yardstick">How big is that, really?</h2>
-
-<p>Every number so far is unanchored. A correlation of {conc_r_ref:.2f}, or
-{1 - DATA["mechanism"]["by_contrast"]["t2t_minus_grch38_linear"]["allele_frequency"]["share_within_0.01"]:.1%}
-of sites with a shifted allele frequency, means nothing without knowing what a change of
-comparable weight looks like. The variant caller supplies that. Swapping DeepVariant for
-HaplotypeCaller is a decision most groups make without discussion, and it can be measured on
-exactly the same instrument.</p>
-
-{fig("yardstick", "Bar chart comparing the share of sites with shifted allele frequency across reference, aligner and caller swaps, with the caller bars roughly twice the height of the others", "The three method axes on one footing: same donors, same chromosomes, same stage. Changing the variant caller moves allele frequencies more than twice as much as changing the reference genome.")}
-
-{t_yardstick}
-
-<p><strong>A reference swap is the smallest of the three changes.</strong> It shifts the
-frequency of {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of sites, against
-{DATA["yardstick"]["mean_by_axis"]["aligner"]:.2%} for an aligner swap and
-{DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a caller swap — the caller being
-{DATA["yardstick"]["ratio_to_aligner"]["caller"]:.1f} times the aligner and
-{DATA["yardstick"]["ratio_to_aligner"]["caller"] / DATA["yardstick"]["ratio_to_aligner"]["reference"]:.1f}
-times the reference. Anyone comfortable with their choice of variant caller has already
-accepted a larger perturbation than the one this page is about.</p>
-
-<div class="callout">
-<p><strong>The caveat is the finding, not a footnote.</strong> A cross-reference comparison can
-only be made on variants that carry a unique identity in <em>both</em> references — about 1.9
-million of the roughly 10 million in each callset. Same-reference comparisons use all of them.
-So the reference axis above is measured <em>only among variants both references can
-represent</em>, and the variants only one reference can represent are excluded entirely.</p>
-<p>Read the two halves together and they say something sharper than either alone. Where two
-references can both see a variant, they agree about it better than two aligners do. The
-reference's distinctive effect is not that it measures shared variants differently — it is
-<em>what it can see at all</em>. That is what the gene universes and the arm-exclusive variants
-further down are measuring, and it is where the reference change actually lives.</p>
-</div>
-
 <h2 id="hotspots">Where the references disagree</h2>
 
 <p>Two maps can call almost the same number of eGenes while disagreeing about which variants
@@ -1113,6 +1211,24 @@ that identity together with the gene, and its slope oriented to the T2T alternat
 matched variant then yields a difference in test statistic between any two arms. Binned into
 fixed {HS["window_size_bp"] // 1000}-kb windows, those differences separate into two regimes
 that barely touch.</p>
+
+<p>Building that frame exposes something worth stating on its own, because it is the most
+literal form reference bias takes. Normalising a GRCh38 variant into T2T coordinates swaps
+which allele is <em>reference</em> for {flip_lin:.1%} of them — {flip_n:,} variants, or nearly
+one in three. The figure is {flip_lin:.2%} in the linear GRCh38 arm and {flip_gph:.2%} in the
+graph arm, and it is exactly zero in both T2T arms, which are already in the frame. That
+agreement across two aligners and its disappearance on the native reference confirm it is a
+property of the two genomes rather than of this pipeline. It is also unsurprising once stated:
+CHM13 is a single haploid genome, so at any common polymorphism it carries the allele GRCh38
+calls alternate about as often as that allele is frequent.</p>
+
+<p>The consequence is that <strong>"the reference allele" is not a property of a variant. It is
+a property of a choice</strong>, and it changes for a third of the genome's common variation
+depending on which choice is made. Any quantity polarised on REF — an allele frequency, the
+sign of a burden, the direction of an effect — carries that choice with it. Worth setting
+against the correction people usually worry about: only {realign_hi:.2%} of these variants
+needed haplotype realignment to reconcile indel representation between the references. The
+small, well-known problem is small. The large one is which allele you decided to call normal.</p>
 
 {fig("reference-vs-aligner", "Horizontal box plot on a log scale of per-window mean absolute delta Z for four contrasts, with the two reference contrasts near 0.21 and the two aligner contrasts near 0.02", "Per-window mean |Δ Z| across all eligible 100-kb windows. The two reference contrasts sit an order of magnitude to the right of the two aligner contrasts, and the whiskers — 5th to 95th percentile — do not meet.")}
 
@@ -1367,51 +1483,6 @@ allograft rejection, Fc-receptor activation — which is what one would expect i
 carried by the MHC and the Fc-receptor loci rather than by immune pathways at large. It is
 reported here as a consistent tendency, not as enrichment.</p>
 
-<h2 id="coloc">What reaches a paper</h2>
-
-<p>The claim that actually leaves a study is rarely an effect size. It is that a
-trait-associated variant appears to act through a particular gene — the statement that sends
-someone to the bench. Testing whether the method changes <em>that</em> means putting the
-credible sets against genome-wide significant GWAS associations and asking which of those
-claims survive a swap.</p>
-
-<p>Trait and variant identifier come from the GWAS Catalog; the T2T coordinate for each
-identifier comes from a T2T-native GWAS annotation already in the reference tree. Joining the
-two on the identifier means neither source is lifted over — each is used in the coordinate
-system it was built in.</p>
-
-{t_coloc}
-
-<p><strong>More than half of these claims change under a reference swap</strong>
-({col_ref:.0%} of the union), and about a fifth under an aligner swap ({col_wf:.0%}). That is
-far larger than the credible-set agreement on its own would suggest, and the reason is
-structural: a colocalisation is a conjunction. Two arms can agree closely about a gene's
-credible set while disagreeing about whether one particular variant is inside it, and the
-conjunction flips on exactly that.</p>
-
-<div class="callout">
-<p><strong>The direction of this difference is confounded and is not reported.</strong> The
-GRCh38 arms show more colocalisations than the T2T arms —
-{COLA["linear_grch38_dv"]["coloc_pairs"]:,} against
-{COLA["linear_t2t_dv"]["coloc_pairs"]:,} — <em>despite the T2T arms carrying more
-credible-set variants</em> ({COLA["linear_t2t_dv"]["credible_set_variants"]:,} against
-{COLA["linear_grch38_dv"]["credible_set_variants"]:,}). The GWAS Catalog is itself ascertained
-from studies, arrays and imputation panels built on earlier references, so its variants align
-better with what GRCh38 can call. That asymmetry is a property of the catalog, not evidence
-that T2T loses signal, and only the <em>magnitude</em> of change should be quoted.</p>
-</div>
-
-<p>Splitting by trait area gives the sharpest form of the argument this page has been
-building.</p>
-
-{t_coloc_traits}
-
-<p>The areas whose loci are most structurally dynamic — psychiatric and neurodevelopmental —
-are the ones whose colocalisations change most, and cancer and neurodegenerative traits change
-least. The spread is modest and the groupings are coarse keyword matches, so this is a
-consistent tendency rather than a test. But it is the prediction the whole argument makes,
-observed at the point where a result would actually be published.</p>
-
 <h2 id="universe">The genes that were never askable</h2>
 
 <p>Every comparison so far conditions on genes present in both references, which makes all of
@@ -1486,6 +1557,45 @@ comparison of yields, effect sizes, or correlations can reach that, because ever
 conditions on the variants both references share.</p>
 </div>
 
+<h2 id="ancestry">Ancestry, and who a reference represents</h2>
+
+<p>Sex is one axis on which a method change can fall unevenly across a cohort. Ancestry is the
+other, and it has a more direct mechanism: a reference genome is a particular sequence from
+particular people, so how well it represents a donor depends on where that donor's ancestry
+sits relative to it.</p>
+
+<p>Measuring that needs no association model. Each donor's mean alternate-allele dosage says
+how far they sit from whichever reference is in use, and the change in it between arms says
+whether a reference swap moved them closer or further away. This cohort is
+{ANC["group_sizes"].get("EUR", 0)} donors of European, {ANC["group_sizes"].get("AFR", 0)} of
+African and {ANC["group_sizes"].get("AMR", 0)} of American projected ancestry, which is enough
+to compare.</p>
+
+{t_ancestry}
+
+<p><strong>The direction reverses between groups.</strong> Moving to T2T reduces the
+non-reference load of European-ancestry donors by {abs(anc_ref["by_group"]["EUR"]):.3f} and
+<em>increases</em> it for African-ancestry donors by
+{abs(anc_ref["by_group"]["AFR"]):.3f}. The pattern is identical under both aligners, so it is a
+property of the reference and not of the alignment.</p>
+
+<p>This is what the two references' provenance would predict. T2T-CHM13 is a single haploid
+cell line of largely European ancestry; GRCh38 is a mosaic with substantial African-ancestry
+contribution. Swapping one for the other therefore moves the reference point, and it moves it
+toward some donors and away from others. The aligner swap does the same test at roughly a
+fiftieth of the magnitude.</p>
+
+<div class="callout">
+<p><strong>What this does and does not say.</strong> It measures reference bias, not accuracy.
+A donor carrying more non-reference alleles is further from the reference, which is a fact
+about the reference rather than about the donor or about the quality of their genotypes. It
+does <em>not</em> show that African-ancestry donors receive worse eQTL estimates on T2T —
+establishing that would mean linking this shift to those donors' contribution to the
+discordance measured earlier, which has not been done. What it does establish is that
+reference choice interacts with cohort composition, and that a study reporting a T2T
+reanalysis of an ancestrally diverse cohort is not making an ancestry-neutral change.</p>
+</div>
+
 <h2 id="chrx">Chromosome X, and why sex decides it</h2>
 
 <p>One result does not fit the pattern of the others, and it took a stratified analysis to
@@ -1526,45 +1636,6 @@ two-way analysis found it.</p>
 reports a diluted version of a much stronger effect in half the samples, and should be
 stratified. It also means the sex-stratified work that follows — built for an entirely
 different question — is not separable from the methods question after all.</p>
-
-<h2 id="ancestry">Ancestry, and who a reference represents</h2>
-
-<p>Sex is one axis on which a method change can fall unevenly across a cohort. Ancestry is the
-other, and it has a more direct mechanism: a reference genome is a particular sequence from
-particular people, so how well it represents a donor depends on where that donor's ancestry
-sits relative to it.</p>
-
-<p>Measuring that needs no association model. Each donor's mean alternate-allele dosage says
-how far they sit from whichever reference is in use, and the change in it between arms says
-whether a reference swap moved them closer or further away. This cohort is
-{ANC["group_sizes"].get("EUR", 0)} donors of European, {ANC["group_sizes"].get("AFR", 0)} of
-African and {ANC["group_sizes"].get("AMR", 0)} of American projected ancestry, which is enough
-to compare.</p>
-
-{t_ancestry}
-
-<p><strong>The direction reverses between groups.</strong> Moving to T2T reduces the
-non-reference load of European-ancestry donors by {abs(anc_ref["by_group"]["EUR"]):.3f} and
-<em>increases</em> it for African-ancestry donors by
-{abs(anc_ref["by_group"]["AFR"]):.3f}. The pattern is identical under both aligners, so it is a
-property of the reference and not of the alignment.</p>
-
-<p>This is what the two references' provenance would predict. T2T-CHM13 is a single haploid
-cell line of largely European ancestry; GRCh38 is a mosaic with substantial African-ancestry
-contribution. Swapping one for the other therefore moves the reference point, and it moves it
-toward some donors and away from others. The aligner swap does the same test at roughly a
-fiftieth of the magnitude.</p>
-
-<div class="callout">
-<p><strong>What this does and does not say.</strong> It measures reference bias, not accuracy.
-A donor carrying more non-reference alleles is further from the reference, which is a fact
-about the reference rather than about the donor or about the quality of their genotypes. It
-does <em>not</em> show that African-ancestry donors receive worse eQTL estimates on T2T —
-establishing that would mean linking this shift to those donors' contribution to the
-discordance measured earlier, which has not been done. What it does establish is that
-reference choice interacts with cohort composition, and that a study reporting a T2T
-reanalysis of an ancestrally diverse cohort is not making an ancestry-neutral change.</p>
-</div>
 
 <h2 id="interaction">Genotype×sex interaction, and why scale decides it</h2>
 
@@ -1704,6 +1775,189 @@ Second, this must be counted per gene and never per variant-gene pair. In an ear
 single large LD block contributed the majority of significant pairs and was XY-stronger,
 which flipped the apparent direction entirely when counted by pair. Genes, not pairs.</p>
 
+<h2 id="coloc">What reaches a paper</h2>
+
+<p>The claim that actually leaves a study is rarely an effect size. It is that a
+trait-associated variant appears to act through a particular gene — the statement that sends
+someone to the bench. Testing whether the method changes <em>that</em> means asking, for every
+gene and every trait, whether the two signals share a causal variant, and then asking whether
+the answer survives a swap.</p>
+
+<div class="callout">
+<p><strong>The method here, because it decides what the numbers mean.</strong> This is
+<code>coloc.abf</code> (Giambartolomei and colleagues), which places a prior on the effect at
+each variant and turns each side's estimate and standard error into an approximate Bayes
+factor. Those combine into five posterior probabilities: neither trait has a signal in the
+region, one does, the other does, both do at <em>different</em> variants, or both do at the
+<em>same</em> variant. The last of these, PP4, is the colocalisation claim, and a call here
+means PP4 ≥ {CFL["pp4_call"]:.0%}.</p>
+<p>Priors are the conventional p<sub>1</sub> = p<sub>2</sub> = {pow10(CPR["p1"])} that a given variant is causal for
+either trait alone and p<sub>12</sub> = {pow10(CPR["p12"])} that it is causal for both.
+The prior effect variances are {CPV["eqtl_quantitative"]:.4f} on the quantitative
+expression side and {CPV["gwas_log_odds"]:.2f} on the log-odds side — standard
+deviations of {CPV["eqtl_quantitative"] ** 0.5:.2f} and {CPV["gwas_log_odds"] ** 0.5:.2f}, which is what they are usually quoted as. A region is
+only tested where the GWAS has an association at p ≤ {pow10(CFL["gwas_signal_in_window_p"])}
+inside the gene's window and at least {CFL["min_shared_variants"]} variants are shared, since
+below that the Bayes factor sums are dominated by noise.</p>
+<p><strong>The single-causal-variant assumption is the method's real limitation and it is
+retained deliberately.</strong> <code>coloc.susie</code> relaxes it, but needs a linkage
+reference matched to every GWAS, and mismatch between that reference and the study is its
+best-known failure mode. Since the question here is whether <em>four arms</em> differ, an
+LD-free method is the safer instrument: the assumption is then applied identically to all
+four and cancels from the comparison even where it is wrong in absolute terms. Anything that
+differed between arms would come from the eQTL side, which is what is being measured, rather
+than from a panel choice introduced by the analyst.</p>
+<p>The implementation is vectorised rather than looped, and was checked against the reference
+R <code>coloc</code> package on forty random regions including planted shared signals: the
+largest difference in any posterior was <strong>2&times;10<sup>-9</sup></strong>.</p>
+</div>
+
+<p>Both sides are placed in the same common frame and both effect vectors are re-signed to its
+alternate allele before any Bayes factor is computed — necessary because reference and
+alternate swap for about a third of variants across that boundary, and a colocalisation reads
+the two effects as measurements of the same thing. The panel is {col_n_traits} studies:
+{CTC.get("psychiatric", 0)} psychiatric, {CTC.get("neurodevelopmental", 0)}
+neurodevelopmental, {CTC.get("neurodegenerative", 0)} neurodegenerative,
+{CTC.get("immune", 0)} immune, and {CTC.get("comparison", 0)} with no particular reason to be
+exposed, which act as a comparison group. That yields {CTOT["tests"]:,} gene-trait tests
+across the four arms, over {col_gene_lo:,}–{col_gene_hi:,} genes per arm — every gene with cis
+statistics, not only the fine-mapped ones.</p>
+
+{t_coloc}
+
+<p><strong>A reference swap changes about a third of colocalisation calls; an aligner swap
+changes about one in twenty-five.</strong> But the calls that change are overwhelmingly the
+marginal ones. Restricting to pairs where at least one arm was already confident — the claims
+a paper would actually have made — a reference swap changes
+{col_ref_strong:.1%} and an aligner swap {col_wf_strong:.1%}. The underlying evidence barely
+moves at all: the median change in PP4 is
+{COL["t2t_minus_grch38_linear"]["median_abs_pp4_difference"]:.4f} under a reference swap and
+{COL["graph_minus_linear_grch38"]["median_abs_pp4_difference"]:.5f} under an aligner swap,
+with correlations of {COL["t2t_minus_grch38_linear"]["pp4_pearson_r"]:.3f} and
+{COL["graph_minus_linear_grch38"]["pp4_pearson_r"]:.3f}. Most of the churn is a posterior
+sitting near the threshold and crossing it, not a conclusion being overturned.</p>
+
+<div class="callout">
+<p><strong>An earlier version of this page reported these numbers two to five times
+larger, and it was wrong.</strong> That analysis scored <em>credible-set membership</em>:
+whether a genome-wide significant GWAS variant happened to fall inside a gene's credible set.
+That is variant overlap, not colocalisation. It has no model of the GWAS signal, it turns on
+one variant's membership, and the variant in question is whichever index SNP a study chose to
+report — which is itself a tagging choice, and therefore entangled with the very thing being
+measured.</p>
+{t_coloc_proxy}
+<p>The proxy is not merely noisier; it is biased upward, because a conjunction that hinges on
+one variant flips far more readily than a posterior computed over a whole region. It also
+produced a spurious asymmetry between the references, which the posterior removes — see
+below. Where the two disagree, the posterior is the one to believe.</p>
+</div>
+
+<p><strong>No arm finds more colocalisations than another.</strong> The four give
+{col_arm_lo:,}–{col_arm_hi:,} calls, a spread under one per cent. This matters because the
+membership proxy showed GRCh38 arms finding roughly a fifth more than T2T arms, and this page
+previously declined to interpret that, on the grounds that the GWAS Catalog is itself
+ascertained on studies built against earlier references. That reasoning turns out to have been
+right. Given full summary statistics rather than catalog index variants, the asymmetry
+disappears entirely. The direction is now readable on both axes, and what it says is that
+neither reference nor aligner produces more colocalisations — only different ones.</p>
+
+<h3>Where the change is concentrated</h3>
+
+<p>Everything above is a genome-wide average, and this page has spent its length arguing that
+the genome is not uniform. Averaging over the great majority of the genome that a method change
+leaves alone will dilute any effect confined to the minority that it does not, so the comparison
+is worth making inside and outside the discordance windows separately.</p>
+
+{t_coloc_strat}
+
+<p><strong>Colocalisation calls change far more often inside the discordance windows</strong> —
+{COLS["graph_minus_linear_grch38"]["odds_ratio"]:.1f} times the odds on the aligner axis and
+{COLS["t2t_minus_grch38_linear"]["odds_ratio"]:.2f} times on the reference axis. That is this
+page's central regional claim reproducing at the endpoint a reader actually cares about, and on
+an instrument that shares no statistics with the one that defined the windows: those were drawn
+from eQTL test statistics, and this is a posterior computed over two independent effect
+profiles.</p>
+
+<p>It also means the genome-wide figures in the table above understate the case where it
+matters. Working inside these regions, roughly
+{COLS["t2t_minus_grch38_linear"]["flagged_rate"]:.0%} of colocalisation calls are contingent on
+the reference and {COLS["graph_minus_linear_grch38"]["flagged_rate"]:.0%} on the aligner
+alone.</p>
+
+<h3>Which traits move, and why this cannot answer it</h3>
+
+<p>The project's argument predicts that psychiatric and neurodevelopmental loci should be the
+most exposed to representation choice, because the regions that are hard to align are hard on
+account of population-level variability and that same variability is what makes them
+disease-relevant. Splitting the colocalisations by trait area appears to test that prediction
+at the point where a result would be published. It does not, and the reason is worth following
+carefully, because the raw comparison looks like a clean refutation.</p>
+
+{t_coloc_traits}
+
+<p>Taken at face value the prediction fails in the opposite direction. Brain traits are the
+<em>least</em> likely to change: pooling psychiatric with neurodevelopmental gives 26.7%
+against 34.2% for everything else, an odds ratio of <strong>0.70</strong> (p = 0.014). Three
+explanations were tested.</p>
+
+<ul>
+  <li><strong>Not the source of the studies.</strong> The psychiatric studies come mostly from
+      the consortium's own deposits, because the GWAS Catalog holds no adequately powered
+      psychiatric summary statistics, while the immune and comparison studies come entirely
+      from the Catalog — so source and trait area are nearly collinear. Within the psychiatric
+      group, where both sources are present, they give 27.8% and 28.6%, <strong>p = 1</strong>.
+      Restricting the comparison to Catalog-sourced studies leaves the ordering unchanged.</li>
+  <li><strong>Not that brain calls are better determined.</strong> Neurodevelopmental traits
+      have the <em>lowest</em> median PP4 among their calls (0.873 against 0.910 for immune)
+      and the fewest above 0.95, so they sit closer to the threshold and should flip more
+      readily, not less.</li>
+  <li><strong>Not coverage.</strong> The GWAS panel is measurably thinner inside the flagged
+      windows and most thinly for brain traits — they cover {COLC["brain_median"]:.3f} of the
+      common frame there relative to outside, against {COLC["other_median"]:.3f} for the rest —
+      and that reaches the individual test, where a brain-trait colocalisation draws on a
+      median of {COLJ["t2t_minus_grch38_linear"]["shared_median_brain"]:,.0f} shared variants
+      against {COLJ["t2t_minus_grch38_linear"]["shared_median_other"]:,.0f}. Stratifying on the
+      variant count that actually entered each posterior leaves the deficit where it was:
+      {COLJ["t2t_minus_grch38_linear"]["adjusted_odds_ratio"]:.2f}
+      (95% CI {COLJ["t2t_minus_grch38_linear"]["ci_low"]:.2f}&ndash;{COLJ["t2t_minus_grch38_linear"]["ci_high"]:.2f},
+      p = {COLJ["t2t_minus_grch38_linear"]["adjusted_p"]:.3f}).</li>
+</ul>
+
+<div class="callout">
+<p><strong>The fourth explanation is the right one, and it dissolves the result.</strong>
+Psychiatric and neurodevelopmental GWAS are simply weaker than the immune and anthropometric
+studies they are being compared against. The strongest association inside a gene's window has a
+median of 10<sup>&minus;{SIG["signal_median_brain"]:.1f}</sup> for brain traits against
+10<sup>&minus;{SIG["signal_median_other"]:.1f}</sup> for the rest — three orders of magnitude.
+A posterior built on a weaker trait signal sits further from the calling threshold and crosses
+it less often, for reasons that have nothing to do with which regions the loci occupy.</p>
+<p>Comparing tests at matched signal strength, <strong>the difference is no longer
+significant</strong>: odds ratio {SIG["signal_or"]:.2f}
+(95% CI {SIG["signal_lo"]:.2f}&ndash;{SIG["signal_hi"]:.2f}, p = {SIG["signal_p"]:.2f}).
+Matching on signal and coverage together gives {SIG["joint_or"]:.2f}
+({SIG["joint_lo"]:.2f}&ndash;{SIG["joint_hi"]:.2f}, p = {SIG["joint_p"]:.2f}). The apparent
+trait effect was a study-power artefact.</p>
+</div>
+
+<p>So this analysis is <strong>underpowered to say anything about the trait prediction, in
+either direction</strong>. That is a weaker conclusion than either "the argument is confirmed"
+or "the argument fails", and it is the one the data supports. It is worth recording how it was
+reached: the first three checks all left the deficit standing, and stopping there would have
+produced a confident published negative that the fourth check removes.</p>
+
+<p>None of this touches the regional findings. The window-level discordance, the enrichment of
+moved genes for recurrent genomic-disorder loci and human accelerated regions, the chromosome X
+result and the ancestry result all stand, and the stratified colocalisation above reproduces
+the central regional claim on an independent instrument.</p>
+
+<p>Two limits remain on any trait-level claim from data of this kind. A gene-trait pair is only
+testable where a GWAS already has an association in the window, so the loci examined are the
+ones GWAS has already succeeded on; if representation choice bites hardest where GWAS has
+<em>not</em> yet produced clean signals, those loci are absent by construction. And every GWAS
+here is built against GRCh38, so a variant only T2T can represent cannot appear on the trait
+side at all. Settling the question needs a cohort imputed and analysed against a T2T panel,
+which is a different experiment from this one.</p>
+
 <h2 id="standing">What is settled, and what is not</h2>
 
 <p>Settled, in the sense of resting on the complete four-arm run tree:</p>
@@ -1727,11 +1981,33 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       {1 - lead_ref_same_lo:.0%} of shared eGenes, but {ld_same_ref:.0%} of those pairs are in
       high linkage disequilibrium. Only about {net_ref:.0%} of shared eGenes end up with a
       genuinely different causal candidate.</li>
-  <li><strong>Over half of GWAS colocalisations change under a reference swap</strong>
-      ({col_ref:.0%} of the union; {col_wf:.0%} for an aligner swap), because a
-      colocalisation is a conjunction and flips on a single variant's set membership.
-      Psychiatric and neurodevelopmental traits change most, cancer and neurodegenerative
-      least.</li>
+  <li><strong>A reference swap changes about a third of colocalisation calls and an aligner
+      swap about one in twenty-five</strong> ({col_ref:.0%} and {col_wf:.0%} of the union),
+      but the calls that move are the marginal ones. Among pairs already confident in at
+      least one arm the figures fall to {col_ref_strong:.1%} and {col_wf_strong:.1%}, and the
+      median shift in posterior is
+      {COL["t2t_minus_grch38_linear"]["median_abs_pp4_difference"]:.4f} and
+      {COL["graph_minus_linear_grch38"]["median_abs_pp4_difference"]:.5f}. The evidence
+      barely moves; a threshold gets crossed.</li>
+  <li><strong>Neither reference nor aligner produces more colocalisations — only different
+      ones.</strong> The four arms give {col_arm_lo:,}–{col_arm_hi:,} calls, a spread under
+      one per cent. An earlier credible-set-membership analysis appeared to show GRCh38
+      finding a fifth more than T2T; that was the GWAS Catalog's own ascertainment, and it
+      vanishes once full summary statistics replace catalog index variants.</li>
+  <li><strong>Colocalisation change is concentrated where this page said it would be.</strong>
+      Calls change {COLS["graph_minus_linear_grch38"]["odds_ratio"]:.1f} times more often
+      inside the discordance windows on the aligner axis and
+      {COLS["t2t_minus_grch38_linear"]["odds_ratio"]:.2f} times on the reference axis — the
+      central regional claim reproducing on an instrument that shares no statistics with the
+      one that defined those windows.</li>
+  <li><strong>The trait prediction is untestable with GRCh38-based GWAS, not refuted.</strong>
+      Brain-trait colocalisations appear to change less (odds ratio 0.70, p = 0.014), and that
+      survives checks on study source, call confidence and coverage. It does not survive
+      matching on GWAS signal strength — brain studies are three orders of magnitude weaker
+      inside a gene's window — after which the difference is not significant
+      ({SIG["signal_or"]:.2f}, p = {SIG["signal_p"]:.2f}). Every GWAS here is also built
+      against GRCh38, so a variant only T2T can represent cannot appear on the trait side at
+      all.</li>
   <li><strong>Fine-mapping survives at the level it reports.</strong> Credible sets overlap
       for {cs_ovl_ref:.0%} to {cs_ovl_wf:.0%} of shared genes, but the top variant inside them
       agrees only {cs_top_ref:.0%} of the time under a reference swap. A credible set is robust
@@ -1807,6 +2083,19 @@ which flipped the apparent direction entirely when counted by pair. Genes, not p
       been placed against a change nobody considers controversial. Repeating the analysis with
       a different variant caller would say whether a reference swap perturbs a map more or
       less than a routine tooling decision, and that comparison is the one a reader needs.</li>
+  <li><strong>What colocalisation cannot see.</strong> A gene-trait pair is only testable
+      where a GWAS already has an association inside the gene's window, so the loci examined
+      are the ones GWAS has already resolved. If representation choice bites hardest where
+      GWAS has <em>not</em> yet produced clean signals — which is what the regional results
+      here would predict — those loci are absent from that table by construction. Nothing in
+      this analysis can distinguish "brain loci are robust" from "the brain loci GWAS has
+      resolved are the robust ones".</li>
+  <li><strong>One causal variant per region.</strong> <code>coloc.abf</code> assumes it. The
+      assumption is applied identically to all four arms, so it does not bias the comparison,
+      but it does make each individual posterior unreliable at loci with several independent
+      signals — which the fine-mapping shows are common enough to matter. A SuSiE-based
+      colocalisation would relax it at the cost of needing a linkage reference matched to
+      every study, and that trade has not been made here.</li>
   <li><strong>Annotation versus sequence in the gene universes.</strong> A majority of
       reference-exclusive genes are absent from the other reference's annotation entirely, so
       annotation release explains much of the {uni_excl:,}-gene turnover. Separating that from
@@ -1858,6 +2147,33 @@ at {HS["rotations"]:,} rotations after a count-matched screen. The family-wise v
 the genome-wide maximum window mean on each of {GW["rotations"]:,} rotations and compares every
 window against the upper quantile of that maximum, over all {GW["tests"]:,} window tests in the
 four contrasts.</p>
+
+<p><strong>Fine-mapping.</strong> SuSiE via <code>tensorqtl.susie</code>, per arm, over that
+arm's own eGenes at {SUS["fdr"]:.0%} FDR from its own permutation pass, with {SUS["pcs"]}
+expression PCs: L = {SP["L"]} signals, coverage {SP["coverage"]:.0%}, purity filter
+min_abs_corr = {SP["min_abs_corr"]}, MAF ≥ {SP["maf_threshold"]},
+±{SP["window"] // 10**6} Mb window, tolerance {SP["tol"]} within {SP["max_iter"]} iterations —
+{DATA["credible_sets"]["gene_finemappings"]:,} gene fine-mappings in
+{DATA["credible_sets"]["gpu_minutes"]:.0f} GPU-minutes. Missing dosages are converted from
+IEEE NaN to the <code>-9</code> sentinel before reaching tensorqtl, whose mean imputation
+recognises the sentinel and not NaN; without that adapter variants are dropped silently.</p>
+
+<p><strong>Colocalisation.</strong> <code>coloc.abf</code> with priors
+p<sub>1</sub> = p<sub>2</sub> = {pow10(CPR["p1"])}, p<sub>12</sub> = {pow10(CPR["p12"])} and prior
+effect variances {CPV["eqtl_quantitative"]:.4f} (quantitative) and {CPV["gwas_log_odds"]:.2f}
+(log odds). A gene-trait pair is tested where the GWAS has p ≤
+{pow10(CFL["gwas_signal_in_window_p"])} inside the gene's cis window and at least
+{CFL["min_shared_variants"]} variants are shared; a call is PP4 ≥ {CFL["pp4_call"]:.0%}.
+Implemented vectorised in polars and numpy, with log Bayes factors accumulated by log-sum-exp
+in float64 — z² reaches the hundreds and is summed over thousands of variants, which float32
+cannot carry — and checked against the reference R <code>coloc</code> package on forty random
+regions including planted shared signals, agreeing to 2&times;10<sup>-9</sup>. The panel is
+{col_n_traits} studies; the well-powered psychiatric and neurodevelopmental GWAS have no
+summary statistics in the GWAS Catalog and come from the consortium's own public deposits,
+which use a different layout, a different genome build and rsID rather than coordinate keys.
+Those are mapped into the common frame through a T2T-native dbSNP index, so no liftover is
+performed on them either. Both effect vectors are re-signed to the common frame's alternate
+allele before any Bayes factor is computed.</p>
 
 <p>Every figure and every table on this page is generated directly from the run
 tree by a single collection script, so no number here was transcribed by hand. Figures are

@@ -484,59 +484,348 @@ comparable on the shared gene set used here. Overlap is computed on variants pla
 common frame, which is 99.2–100% of them, so a set containing reference-unique variants is
 compared on the remainder and disagreement is understated.
 
-**Test whether GWAS colocalization changes.** `[COMPLETE — credible-set membership]`
-Run root `runs/gwas_coloc_20260817`.
+**Measure reference-allele orientation across the frame.** `[COMPLETE]`
+Read directly from `runs/four_arm_variant_identity_comparison_20260811`; no new run root.
 
-*The trait source that was blocking this is solved.* The GWAS Catalog's ontology-annotated
-associations release supplies trait and rsID; the T2T-native GWAS VCF already in the reference
-tree supplies the T2T coordinate for that rsID. Joining on rsID means **no liftover is
-performed** — each source is used in the coordinate system it was built in.
+Normalising a GRCh38 variant into the common T2T frame swaps which allele is *reference* for
+**30.08%** of them (2,661,900 of 8,848,118 in the linear arm; 30.07% in the graph arm). It is
+exactly **zero** in both T2T arms, which are already in the frame. Agreement across two
+aligners and disappearance on the native reference establish this as a property of the two
+genomes, not of the pipeline. LiftoverIndel's own INFO field defines the flag as "REF/ALT were
+flipped during liftover. GTs were altered accordingly", so genotypes are recoded and dosages
+stay valid.
 
-A colocalisation here is a (gene, GWAS variant, trait) triple where a genome-wide significant
-variant is a member of that gene's SuSiE credible set. That is credible-set membership rather
-than Bayesian colocalisation, which would need per-trait genome-wide summary statistics; it
-supports "this GWAS variant is among the gene's plausible causal variants", not a posterior
-probability of a shared signal.
+The magnitude is expected rather than anomalous: CHM13 is a single haploid genome, so at a
+common polymorphism it carries the GRCh38-alternate allele about as often as that allele is
+frequent, and the variant set here is MAF-filtered.
 
-| Contrast | Shared | Only in first arm | Only in second | **Union that changes** |
+**"The reference allele" is a property of a choice, not of a variant**, and the choice changes
+for roughly a third of common variation. Any quantity polarised on REF — an allele frequency, a
+burden direction, an effect sign — carries that choice. Set against it, only **0.38%** of the
+same variants needed haplotype realignment to reconcile indel representation. The correction
+the field worries about is small; the one it does not discuss is large.
+
+*Practical consequence for this project:* matching GWAS variants to credible-set variants must
+compare **unordered** allele pairs. An ordered `(REF, ALT)` join would silently discard close to
+a third of genuine matches, and would do so non-randomly.
+
+---
+
+**Place GWAS variants in the common frame, and check the placement.** `[COMPLETE]`
+Run root `runs/gwas_variant_placement_crosscheck_20260817`.
+
+The earlier colocalisation placed catalog rsIDs through a T2T-native GWAS VCF released in
+March 2022. **That file is a frozen slice of the catalog, not a general rsID map** — 186,904
+records in total — so joining on it silently intersected the analysis with a four-year-old
+release. The resulting 39.9% placement rate was
+recorded as a coverage limit of T2T. It was a limit of the join. The catalog carries its own
+GRCh38 coordinate for 99.7% of its genome-wide significant rsIDs.
+
+Two placements were built and compared:
+
+| Placement | rsIDs placed of 341,981 | Share |
+|---|---|---|
+| GWAS VCF, r2022-03-08 (the source being replaced) | 136,306 | 39.9% |
+| dbSNP155 T2T-native (no liftover at all) | 331,862 | 97.0% |
+| **LiftoverIndel from the catalog's GRCh38 coordinates** | **334,179** | **97.7%** |
+
+The LiftoverIndel pass uses the same tool, chain, reference-differences VCF and target FASTA
+recorded in `grch38_to_t2t_full_variant_liftover_v4_authorization_20260811.json`, so GWAS and
+eQTL variants are placed by one identical procedure instead of by two liftovers assumed to
+agree. Alleles come from dbSNP155 GRCh38.p13, the build the catalog reports against. Of 570,685
+input records, 564,061 lifted (98.8%); 6,552 were unliftable, 70 had multiple overlaps and 2
+failed a reference-sequence check.
+
+**The two placements are independent — one is a native build, the other a liftover — and they
+agree on the exact base for 99.91% of the
+331,177 rsIDs both can place.** The common frame is therefore settled
+empirically rather than assumed, which matters because the assumption is weakest in exactly
+the divergent regions this project studies.
+
+*Was the 2022 source's dropout random?* Only mildly non-random, and **less so than predicted**.
+rsIDs it missed sit in an FDR-flagged discordance window 16.3%
+of the time against 15.1% for those it kept — an odds ratio of
+1.09. Mean segmental-duplication content is
+0.0411 against 0.0337 and mappability is essentially
+identical. The prediction that dropout concentrated in divergent regions is weakly supported at
+best; the real problem with the old source was that it lost 60% of the data outright.
+
+---
+
+**Two tooling notes for anyone repeating this.**
+
+1. LiftoverIndel's REF/ALT flip path calls `var.genotype.array()` to recode genotypes and
+   therefore **crashes on a sites-only VCF**. One placeholder sample carrying `0/0` satisfies
+   it; the flip rewrites that genotype and only coordinates and alleles are read back.
+2. `--chrom` restricts the target-FASTA load but **not** the input iteration, so a restricted
+   run walks into other contigs and fails with `KeyError` on the reference-differences index.
+   Subset the input VCF instead.
+3. The tool emits records in source order and warns that the output "still requires indel
+   normalizing, sorting"; `bcftools index` fails until it is sorted.
+
+---
+
+**Colocalise every cis-eQTL against a GWAS panel, Bayesian.** `[COMPLETE]`
+Run root `runs/gwas_coloc_bayesian_20260817`. **Supersedes `runs/gwas_coloc_20260817` and
+`runs/gwas_coloc_v2_20260817`**, which scored credible-set membership rather than
+colocalisation.
+
+*Why the earlier runs were replaced.* They asked whether a genome-wide significant GWAS
+variant fell inside a gene's SuSiE credible set. That is variant overlap: no model of the GWAS
+signal, the answer hinging on one variant's membership, and the variant in question being
+whichever index SNP a study happened to report — itself a tagging choice, and therefore
+entangled with what was being measured. It also inherits the GWAS Catalog's ascertainment.
+
+*Method.* `coloc.abf` (Giambartolomei 2014). Priors p1 = p2 = 1e-4, p12 = 1e-5; prior effect
+variances 0.15² (quantitative expression) and 0.2² (log odds). A gene-trait pair is tested
+where the GWAS has p ≤ 1e-5 inside the gene's cis window and ≥ 50 variants are shared; a call
+is PP4 ≥ 0.8. Implemented vectorised in polars/numpy with log Bayes factors accumulated by
+log-sum-exp in float64, and **validated against the R `coloc` package on 40 random regions
+including planted shared signals: largest posterior difference 2.0e-9**.
+
+*The single-causal-variant assumption is retained deliberately.* `coloc.susie` relaxes it but
+requires an LD reference matched to every GWAS, and LD-reference mismatch is its best-known
+failure mode. The question here is whether four arms differ, so an LD-free method is the safer
+instrument: the assumption applies identically to all four and cancels from the comparison
+even where it is wrong in absolute terms.
+
+*eQTL input* is `runs/four_arm_nominal_v4_k35_nanfix_20260811` — every cis gene-variant pair,
+not only fine-mapped eGenes. Both effect vectors are re-signed to the common frame's alternate
+allele before any Bayes factor is computed, which is required because REF/ALT swap for ~30% of
+variants across that boundary.
+
+*Panel:* 40 studies —
+11 comparison, 10 immune, 2 neurodegenerative, 5 neurodevelopmental, 12 psychiatric. The well-powered
+psychiatric and neurodevelopmental GWAS **have no summary statistics in the GWAS Catalog**
+(PGC3 schizophrenia and the large bipolar meta-analyses return HTTP 404 there); they come from
+the consortium's public figshare deposits and are mapped into the common frame through a
+T2T-native dbSNP index, so no liftover is applied to them either.
+
+| Arm | Tests | Genes tested | Colocalisations | Genes with one |
 |---|---|---|---|---|
-| T2T − GRCh38 · linear | 3,300 | 1,307 | 2,696 | **54.8%** |
-| T2T − GRCh38 · graph | 3,126 | 1,072 | 2,476 | **53.2%** |
-| graph − linear · GRCh38 | 5,193 | 409 | 803 | 18.9% |
-| graph − linear · T2T | 3,915 | 283 | 692 | 19.9% |
+| linear_grch38_dv | 259,239 | 17,936 | 926 | 672 |
+| graph_grch38_dv | 259,257 | 17,937 | 930 | 673 |
+| linear_t2t_dv | 256,463 | 17,745 | 933 | 664 |
+| graph_t2t_dv | 256,516 | 17,745 | 928 | 657 |
 
-**Over half of colocalisations change under a reference swap**, and a fifth under an aligner
-swap. This is much larger than the credible-set overlap alone suggested, and the reason is that
-colocalisation is a conjunction: the sets can agree closely while the specific membership of a
-GWAS variant flips.
+| Contrast | Both | Only first | Only second | Calls changed | Confident changed | Median \|ΔPP4\| | r |
+|---|---|---|---|---|---|---|---|
+| T2T − GRCh38 · linear | 730 | 168 | 172 | **31.8%** | **12.2%** | 0.00215 | 0.915 |
+| T2T − GRCh38 · graph | 730 | 164 | 175 | **31.7%** | **12.1%** | 0.00215 | 0.914 |
+| graph − linear · GRCh38 | 909 | 21 | 17 | **4.0%** | **1.6%** | 0.00005 | 0.995 |
+| graph − linear · T2T | 913 | 15 | 20 | **3.7%** | **1.4%** | 0.00005 | 0.996 |
 
-**The direction is confounded and must not be reported.** GRCh38 arms show more colocalisations
-than T2T arms (5,996 against 4,607 pairs) *despite T2T arms carrying more credible-set variants*
-(65,300 against 63,248). The GWAS Catalog is itself ascertained on GRCh38-era studies, arrays
-and imputation panels, so its variants align better with what GRCh38 can call. Only 136,306 of
-341,981 significant rsIDs could be placed in T2T coordinates at all. The asymmetry is a property
-of the catalog, not evidence that T2T loses signal, and the magnitude of change is the only part
-of this result that should be quoted.
+**A reference swap changes about a third of colocalisation calls and an aligner swap about one
+in twenty-five — but the calls that move are the marginal ones.** Restricted to pairs already
+confident in one arm, the figures are 12.2% and 1.6%. The evidence barely moves: median |ΔPP4|
+is 0.0022 and 0.00005, with r = 0.915 and 0.995.
 
-*By trait area*, share of the colocalisation union that changes under a reference swap:
+*Against the superseded proxy:*
 
-| Trait area | Shared | Changed | Share changed |
+| Contrast | Credible-set membership | coloc.abf | Confident coloc.abf |
 |---|---|---|---|
-| psychiatric | 137 | 237 | **63%** |
-| neurodevelopmental | 69 | 112 | **62%** |
-| immune | 203 | 266 | **57%** |
-| gastrointestinal | 14 | 17 | **55%** |
-| neurodegenerative | 36 | 41 | **53%** |
-| cancer | 74 | 83 | **53%** |
+| T2T − GRCh38 · linear | 56.6% | 31.8% | **12.2%** |
+| T2T − GRCh38 · graph | 53.4% | 31.7% | **12.1%** |
+| graph − linear · GRCh38 | 21.0% | 4.0% | **1.6%** |
+| graph − linear · T2T | 22.8% | 3.7% | **1.4%** |
 
-The two areas the project's thesis predicts should be most exposed — psychiatric and
-neurodevelopmental — do change most, and cancer and neurodegenerative least. The spread is
-modest and the groups are coarse keyword matches, so this is a consistent tendency rather than
-a test.
+**The proxy overstated instability by two to five times.** It is biased upward, not merely
+noisier: a conjunction hinging on one variant flips far more readily than a posterior computed
+over a region.
 
-*Bounds.* Variants are matched on T2T chromosome and position without checking allele identity.
-Trait groups are keyword-based and a trait can fall in more than one. Everything above is
-conditional on each arm's own eGene selection and credible sets.
+**The direction confound dissolves.** The four arms give 926–933 colocalisations, a spread
+under 1%. The proxy showed GRCh38 arms finding ~22% more than T2T arms, which the page
+declined to interpret on ascertainment grounds. That caution was correct: with full summary
+statistics the asymmetry disappears entirely.
+
+*By trait area, and the thesis prediction fails here:*
+
+| Trait area | Studies | Pairs tested | Called | Reference swap | Aligner swap |
+|---|---|---|---|---|---|
+| immune | 10 | 63,021 | 236 | **36.9%** | 8.7% |
+| neurodegenerative | 2 | 4,386 | 17 | **35.3%** | 0.0% |
+| comparison | 11 | 117,144 | 472 | **32.8%** | 3.1% |
+| psychiatric | 12 | 52,503 | 257 | **28.4%** | 2.1% |
+| neurodevelopmental | 5 | 13,356 | 88 | **21.6%** | 2.5% |
+
+**Brain traits change least, not most.** Pooling psychiatric with neurodevelopmental gives
+26.7% against 34.2% for the rest — **odds ratio 0.70, p = 0.014** (Fisher p = 0.014). Two
+rescues were tested and neither holds:
+
+- *Not a source artefact.* Psychiatric is mostly consortium-sourced and immune entirely
+  Catalog-sourced, so source and trait area are nearly collinear. Within psychiatric, the two
+  sources give 27.8% and 28.6%, **p = 1**. Restricting to Catalog-only leaves the ordering
+  unchanged. Recorded in `SOURCE_CONFOUND.json`.
+- *Not because brain calls are better determined.* Neurodevelopmental has the **lowest**
+  median PP4 among its calls (0.873 against 0.910 immune) and the fewest above 0.95, so it
+  sits closer to the threshold and should flip more.
+
+*What this bounds.* It does not overturn the regional results, which are measured directly on
+association statistics rather than on a downstream conjunction. It establishes something
+narrower: **among loci where a well-powered GWAS has already resolved a clean signal,
+brain-trait colocalisations are not more fragile than others.** A gene-trait pair is only
+testable where the GWAS already has an association in the window, so if representation choice
+bites hardest where GWAS has *not* yet produced clean signals, those loci are excluded by
+construction. That is testable and is not tested here.
+
+*Resources.* 40 traits, 1,031,475 tests, peak 10.0 GB RSS on 24 threads,
+18 minutes. The first attempt joined all traits against all gene-variant pairs at once and
+reached 159 GB on 65 cores; it was killed and restructured to one trait at a time with an
+overlap prefilter.
+
+---
+
+**Fine-mapping settings, recorded because they decide what a credible set means.**
+SuSiE via `tensorqtl.susie`, per arm, over that arm's own eGenes at
+5% FDR with 35 expression PCs:
+L = 10, coverage 95%, purity `min_abs_corr` = 0.5,
+MAF ≥ 0.05, ±1 Mb window, tolerance 0.001 within
+100 iterations.
+
+- **L = 10** caps independent signals per gene; a gene at the cap is censored rather
+  than resolved, so sets-per-gene is a between-arm comparison and not a biological quantity.
+- **Coverage 95%** decides set size. Raising it would raise the overlap
+  statistics and not the top-variant agreement, so the two are not interchangeable.
+- **`min_abs_corr` = 0.5** is the purity filter, removing sets that are the
+  algorithm splitting one signal rather than a real second one.
+- Missing dosages reach tensorqtl as the `-9` sentinel, not IEEE NaN, via the same boundary
+  adapter the association runs use; without it variants are dropped silently.
+
+**Is the colocalisation negative a selection effect?** `[COMPLETE — three tests]`
+Run roots `runs/gwas_coloc_bayesian_20260817` (gate sweep and window stratification,
+`GATE_AND_WINDOW_STRATIFICATION.json`, `GWAS_COVERAGE_IN_FLAGGED_WINDOWS.json`) and
+`runs/neuro_gene_sets_20260817`.
+
+The colocalisation comparison found brain traits *less* sensitive to a reference swap than
+others, against prediction. Because a pair is only testable where a GWAS already has a signal
+in the window, that null is ambiguous between "these regions are ordinary" and "the instrument
+cannot see into them". Three tests separate those.
+
+---
+
+### 1. GWAS coverage inside the flagged windows
+
+| Trait group | Studies | Coverage inside flagged windows ÷ outside |
+|---|---|---|
+| immune | 10 | 0.870 |
+| comparison | 11 | 0.862 |
+| neurodegenerative | 2 | 0.798 |
+| psychiatric | 12 | 0.777 |
+| neurodevelopmental | 5 | 0.765 |
+
+**Every trait is thinner inside the discordance windows, and brain traits are the thinnest.**
+But the standard-error ratio at matched allele frequency is ≈1.000: conditional on a variant
+being measured there is no power loss. The studies do not lose precision where they look —
+**they fail to look**. That is a coverage artefact, not quiet biology.
+
+*Unresolved confounds.* Flagged windows are segmental-duplication enriched, so some depletion
+is expected for any technology; and the psychiatric studies are mostly older consortium
+releases, so the trait difference could be an imputation-panel vintage effect rather than a
+trait effect.
+
+### 2. Stratifying by window — **the regional claim survives, and the genome-wide test was diluting it**
+
+The genome-wide comparison averages over the ~80% of tested genes that sit outside a flagged
+window. Splitting on the gene's anchor:
+
+| Contrast | Inside flagged windows | Outside | Odds ratio | p |
+|---|---|---|---|---|
+| reference (T2T − GRCh38, linear) | 109/294 = **37.1%** | 233/778 = 29.9% | 1.38 | 0.028 |
+| aligner (graph − linear, GRCh38) | 21/261 = **8.0%** | 17/686 = 2.5% | **3.44** | 0.00028 |
+
+**Colocalisation calls are significantly more likely to change inside the windows this project
+flagged from eQTL statistics alone** — 3.4× more likely on the aligner axis. This is the
+project's regional claim reproducing at the endpoint that matters, on an instrument that
+shares no statistics with the one that defined the windows.
+
+**But the trait-specific claim does not follow.** Within flagged windows brain traits are
+still no more affected than others (OR 0.73–0.74, p = 0.18–0.26, not significant), and outside
+them they are significantly *less* affected (OR 0.65–0.67, p ≈ 0.017).
+
+### 3. Loosening the testing gate
+
+The gate sweep scored every pair reaching p ≤ 1e-3 and recorded each one's strongest GWAS
+p-value, so stricter gates are recovered by filtering. Brain-versus-other odds ratio on the
+reference axis:
+
+| Gate | 5e-8 | 1e-5 | 1e-4 | 1e-3 |
+|---|---|---|---|---|
+| odds ratio | 0.56 | 0.69 | 0.71 | 0.71 |
+| p | 0.004 | 0.012 | 0.013 | 0.011 |
+
+**The deficit narrows as weaker GWAS signals are admitted — in the direction the
+underpowered-GWAS explanation predicts — but it never reverses.** Partial support at best.
+
+### 4. Sequencing-derived gene sets — **retracted; the instrument carries the same bias**
+
+This test asked whether the flagged windows are enriched for curated disease genes, on the
+reasoning that gene sets built from sequencing rather than from arrays would be immune to the
+coverage depletion that limits the colocalisation test. **That reasoning was wrong.** SFARI,
+DDG2P and gnomAD are all built from short reads aligned to GRCh38 with linear aligners — the
+same procedure whose blind spots this project exists to map. Exome capture probes are designed
+against GRCh38 and perform poorly in duplicated or divergent sequence, multi-mapping reads are
+discarded, and a gene whose variants cannot be called reliably never accumulates the evidence
+to be curated as a disease gene at all. The control inherits the confound it was meant to break.
+
+The raw result was a mild depletion of disease genes in flagged windows — SFARI OR 0.84
+(p = 0.026), DDG2P OR 0.80 (p = 1.7e-4), and a higher median gnomAD LOEUF (0.906 against
+0.868, p = 6.2e-5) implying *less* constrained genes.
+
+**All of it is a power artefact, and the arithmetic shows it exactly.** LOEUF is the upper
+bound of a confidence interval on the observed-to-expected ratio of loss-of-function variants,
+and a confidence bound widens when there is less information. Inside flagged windows:
+
+| Quantity | Flagged | Unflagged | Ratio | p |
+|---|---|---|---|---|
+| possible LoF sites (sequence only) | 180.0 | 200.0 | 0.900 | 3.7e-7 |
+| expected LoF variants | 36.2 | 40.3 | 0.900 | 1.2e-6 |
+| observed LoF variants | 20.0 | 21.0 | 0.952 | 4.3e-4 |
+| confidence-interval width | 0.419 | 0.393 | **1.066** | 5.9e-6 |
+| LOEUF (the upper bound) | 0.906 | 0.868 | 1.044 | 6.2e-5 |
+| **o/e point estimate** | 0.620 | 0.603 | 1.029 | **0.052 (n.s.)** |
+
+The point estimate of constraint does not differ significantly; only the *bound* does, and the
+interval is 6.6% wider. Genes in flagged windows offer **10% fewer possible loss-of-function
+sites** — that is the reference and its annotation, not biology.
+
+Stratifying genes by expected LoF count, which matches them on how much information gnomAD
+has, **the LOEUF gap disappears in every quintile**:
+
+| Expected LoF quintile | ~11 | ~25 | ~40 | ~61 | ~112 |
+|---|---|---|---|---|---|
+| p | 0.454 | 0.469 | 0.23 | 0.131 | 0.789 |
+
+The DDG2P depletion largely dissolves under the same stratification (odds ratios 0.88, 1.29,
+0.71, 0.81, 1.13; only one quintile nominally significant, and two above 1).
+
+**Nothing in this test bears on the hypothesis.** It measures where short-read GRCh38 pipelines
+can see, which is what the flagged windows already encode. Recorded in
+`runs/neuro_gene_sets_20260817/CONSTRAINT_POWER_ARTEFACT.json`.
+
+*What would be a valid instrument.* One whose ascertainment does not pass through short-read
+GRCh38 alignment: assembly-based benchmarks (the GIAB Q100 truth set and the Challenging
+Medically Relevant Genes benchmark, both available on CHM13v2.0 locally), cytogenetically
+ascertained disease regions, or long-read studies. It is worth noting that the project's own
+ClinGen result — flagged genes enriched 2.9–9.1× for recurrent genomic-disorder regions — comes
+from exactly such a route, since those regions were defined by karyotype and chromosomal
+microarray rather than by sequencing.
+
+### What the three tests establish together
+
+- **The regional claim is confirmed at the colocalisation endpoint** and was being hidden by
+  genome-wide dilution. This is a new positive result.
+- **The trait-specific claim is untestable with these data, not refuted.** The apparent
+  brain-trait deficit survives source, confidence and coverage checks but not adjustment for
+  GWAS signal strength: brain studies are about three orders of magnitude weaker inside a
+  gene's window (median 10⁻⁶·² against 10⁻⁹·⁴), and matched on signal the difference is not
+  significant (OR 0.80, 95% CI 0.59–1.08, p = 0.15; joint with coverage 0.78, p = 0.12). The
+  first three checks all left the deficit standing, so stopping there would have produced a
+  confident published negative that the fourth removes.
+
+The honest summary is that *where* a method change matters is now established on two
+independent instruments, and *which diseases it matters for* is not established at all.
+
+---
 
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
