@@ -549,6 +549,24 @@ t_coloc_strat = table(
     note="Each gene is placed by the variant nearest its transcription start, and a window "
          "counts as flagged when any contrast marks it discordant at 5% FDR.")
 
+GF = DATA["genotype_fidelity"]
+GFM = GF["matched"]
+GFP = GF["paired"]
+
+t_fidelity = table(
+    ["Arm", "Excess het, ordinary", "Excess het, duplicated",
+     "Skewed-balance share, ordinary", "Skewed-balance share, duplicated"],
+    [[LABEL[a], f'{GFM[a]["ordinary"]["excess_het_rate"]:.3%}',
+      f'<strong>{GFM[a]["duplicated"]["excess_het_rate"]:.3%}</strong>',
+      f'{GFM[a]["ordinary"]["mean_skewed_share"]:.4f}',
+      f'<strong>{GFM[a]["duplicated"]["mean_skewed_share"]:.4f}</strong>']
+     for a in CELLS],
+    cls="numeric",
+    note=f'Matched on {GF["matched_variants"]:,} variants called in all four arms, requiring '
+         f'at least ten heterozygotes per site and ten reads per heterozygote. A site counts '
+         f'as duplicated when its window is at least half segmental duplication. "Skewed" '
+         f'means a heterozygote drawing under 30% or over 70% of its reads from one allele.')
+
 t_curve = table(
     ["Arm"] + [f"k = {k}" for k in KS] + ["Peak"],
     [[LABEL[a]] + [f"{ck(a, k):,}" for k in KS]
@@ -1160,6 +1178,55 @@ would be most expected.</p>
 duplicated sequence than in ordinary sequence in every arm, and no method change repairs that.
 Whatever these choices are doing, they are not improving the precision with which a shared
 variant is measured.</p>
+
+<p>That is a statement about precision, and precision is not fidelity. A standard error says
+how tightly an effect is estimated <em>given</em> the genotypes; it cannot say whether those
+genotypes describe a single diploid locus. Two signatures can, and neither needs a reference to
+be declared correct. Collapse two paralogous copies onto one site and every carrier looks
+heterozygous, so <strong>excess heterozygosity</strong> beyond Hardy-Weinberg expectation is the
+classic signature of it. And a real diploid heterozygote should draw about half its reads from
+each allele, so a <strong>skewed allele balance</strong> means the reads are not coming from one
+diploid locus. Both were measured across five chromosomes in all four arms and compared on the
+same variants.</p>
+
+{t_fidelity}
+
+<p><strong>Pangenomic alignment removes the duplicated-sequence penalty. The reference change
+does not.</strong> In the linear arms, duplicated sequence carries visibly more of both
+signatures than ordinary sequence — excess heterozygosity
+{GFM["linear_grch38_dv"]["duplicated"]["excess_het_rate"]:.3%} against
+{GFM["linear_grch38_dv"]["ordinary"]["excess_het_rate"]:.3%}, and a skewed-balance share of
+{GFM["linear_grch38_dv"]["duplicated"]["mean_skewed_share"]:.4f} against
+{GFM["linear_grch38_dv"]["ordinary"]["mean_skewed_share"]:.4f}. In the graph arms the penalty is
+simply absent: the duplicated skewed-balance share
+({GFM["graph_grch38_dv"]["duplicated"]["mean_skewed_share"]:.4f}) sits at its ordinary-sequence
+value ({GFM["graph_grch38_dv"]["ordinary"]["mean_skewed_share"]:.4f}).</p>
+
+<p>Paired on the same variants, an aligner swap inside duplicated sequence moves excess
+heterozygosity by {abs(GFP["graph_minus_linear_grch38"]["duplicated"]["excess_het_difference"]) * 100:.3f}
+percentage points on GRCh38 and the mean skewed-balance share by
+{abs(GFP["graph_minus_linear_grch38"]["duplicated"]["mean_delta_skewed_share"]):.3f}. A reference
+swap in the same sequence moves them by
+{abs(GFP["t2t_minus_grch38_linear"]["duplicated"]["excess_het_difference"]) * 100:.3f} points and
+{abs(GFP["t2t_minus_grch38_linear"]["duplicated"]["mean_delta_skewed_share"]):.3f}, and against
+the graph background its effect on allele balance is not significant at all
+(p = {GFP["t2t_minus_grch38_graph"]["duplicated"]["skewed_share_p"]:.2f}).</p>
+
+<div class="callout">
+<p><strong>This is the one place in the analysis where a method change is cleaner, and it is
+worth being precise about what it buys.</strong> Not precision: the standard errors above are
+identical to the fourth decimal. What changes is whether a genotype in duplicated sequence
+describes one locus or two collapsed together. Those are different properties and only the
+second responds to pangenomic alignment.</p>
+<p>The direction is partly by construction — haplotype-aware alignment exists to stop
+paralogous reads collapsing, so finding that it does is confirmation rather than discovery. The
+magnitude is the new part, and it is measured on instruments that need no ground truth, which
+this dataset does not have. Two cautions. The matched set requires a variant to survive in all
+four arms, which in duplicated sequence selects the more tractable sites, so this understates
+the gap at the hardest ones. And in the graph arms excess heterozygosity is <em>lower</em> in
+duplicated sequence than in ordinary sequence, which that selection may explain and which is
+not otherwise expected.</p>
+</div>
 
 <p>There is a second way to ask the same question that needs no association model at all. The
 same 225 donors and the same normalised allele must give the same allele frequency, so any
@@ -2021,6 +2088,15 @@ which is a different experiment from this one.</p>
       is measurably less noisy than any other — including in duplicated sequence, where a gain
       would be most expected. These are not noise reductions; they are changes in what is
       being measured.</li>
+  <li><strong>Precision is not fidelity, and pangenomic alignment buys the second.</strong>
+      In duplicated sequence the linear arms carry the signatures of collapsed paralogues —
+      excess heterozygosity {GFM["linear_grch38_dv"]["duplicated"]["excess_het_rate"]:.3%} of
+      sites and a skewed heterozygote allele balance at
+      {GFM["linear_grch38_dv"]["duplicated"]["mean_skewed_share"]:.4f} — and the graph arms do
+      not ({GFM["graph_grch38_dv"]["duplicated"]["excess_het_rate"]:.3%} and
+      {GFM["graph_grch38_dv"]["duplicated"]["mean_skewed_share"]:.4f}, their ordinary-sequence
+      level). The reference change moves neither appreciably. This is the one place an arm is
+      cleaner, on instruments that need no ground truth.</li>
   <li>{uni_excl:,} genes are testable on one reference only, and {uni_excl_egenes} of them are
       eGenes — associations available on one reference and not the other, invisible to any
       matched-gene comparison.</li>

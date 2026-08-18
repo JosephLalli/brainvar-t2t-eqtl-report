@@ -478,6 +478,55 @@ duplicated sequence than in ordinary sequence in every arm, and no method change
 Whatever these choices are doing, they are not improving the precision with which a shared
 variant is measured.</p>
 
+<p>That is a statement about precision, and precision is not fidelity. A standard error says
+how tightly an effect is estimated <em>given</em> the genotypes; it cannot say whether those
+genotypes describe a single diploid locus. Two signatures can, and neither needs a reference to
+be declared correct. Collapse two paralogous copies onto one site and every carrier looks
+heterozygous, so <strong>excess heterozygosity</strong> beyond Hardy-Weinberg expectation is the
+classic signature of it. And a real diploid heterozygote should draw about half its reads from
+each allele, so a <strong>skewed allele balance</strong> means the reads are not coming from one
+diploid locus. Both were measured across five chromosomes in all four arms and compared on the
+same variants.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Arm</th><th>Excess het, ordinary</th><th>Excess het, duplicated</th><th>Skewed-balance share, ordinary</th><th>Skewed-balance share, duplicated</th></tr></thead><tbody><tr><td>linear · GRCh38</td><td>0.204%</td><td><strong>0.283%</strong></td><td>0.0396</td><td><strong>0.0648</strong></td></tr><tr><td>graph · GRCh38</td><td>0.195%</td><td><strong>0.087%</strong></td><td>0.0364</td><td><strong>0.0388</strong></td></tr><tr><td>linear · T2T</td><td>0.200%</td><td><strong>0.262%</strong></td><td>0.0393</td><td><strong>0.0561</strong></td></tr><tr><td>graph · T2T</td><td>0.192%</td><td><strong>0.082%</strong></td><td>0.0362</td><td><strong>0.0388</strong></td></tr></tbody></table></div><p class="tnote">Matched on 1,654,230 variants called in all four arms, requiring at least ten heterozygotes per site and ten reads per heterozygote. A site counts as duplicated when its window is at least half segmental duplication. "Skewed" means a heterozygote drawing under 30% or over 70% of its reads from one allele.</p>
+
+<p><strong>Pangenomic alignment removes the duplicated-sequence penalty. The reference change
+does not.</strong> In the linear arms, duplicated sequence carries visibly more of both
+signatures than ordinary sequence — excess heterozygosity
+0.283% against
+0.204%, and a skewed-balance share of
+0.0648 against
+0.0396. In the graph arms the penalty is
+simply absent: the duplicated skewed-balance share
+(0.0388) sits at its ordinary-sequence
+value (0.0364).</p>
+
+<p>Paired on the same variants, an aligner swap inside duplicated sequence moves excess
+heterozygosity by 0.195
+percentage points on GRCh38 and the mean skewed-balance share by
+0.026. A reference
+swap in the same sequence moves them by
+0.021 points and
+0.009, and against
+the graph background its effect on allele balance is not significant at all
+(p = 0.75).</p>
+
+<div class="callout">
+<p><strong>This is the one place in the analysis where a method change is cleaner, and it is
+worth being precise about what it buys.</strong> Not precision: the standard errors above are
+identical to the fourth decimal. What changes is whether a genotype in duplicated sequence
+describes one locus or two collapsed together. Those are different properties and only the
+second responds to pangenomic alignment.</p>
+<p>The direction is partly by construction — haplotype-aware alignment exists to stop
+paralogous reads collapsing, so finding that it does is confirmation rather than discovery. The
+magnitude is the new part, and it is measured on instruments that need no ground truth, which
+this dataset does not have. Two cautions. The matched set requires a variant to survive in all
+four arms, which in duplicated sequence selects the more tractable sites, so this understates
+the gap at the hardest ones. And in the graph arms excess heterozygosity is <em>lower</em> in
+duplicated sequence than in ordinary sequence, which that selection may explain and which is
+not otherwise expected.</p>
+</div>
+
 <p>There is a second way to ask the same question that needs no association model at all. The
 same 225 donors and the same normalised allele must give the same allele frequency, so any
 difference proves that the measurement at that site depends on which representation was used.
@@ -1408,6 +1457,15 @@ which is a different experiment from this one.</p>
       is measurably less noisy than any other — including in duplicated sequence, where a gain
       would be most expected. These are not noise reductions; they are changes in what is
       being measured.</li>
+  <li><strong>Precision is not fidelity, and pangenomic alignment buys the second.</strong>
+      In duplicated sequence the linear arms carry the signatures of collapsed paralogues —
+      excess heterozygosity 0.283% of
+      sites and a skewed heterozygote allele balance at
+      0.0648 — and the graph arms do
+      not (0.087% and
+      0.0388, their ordinary-sequence
+      level). The reference change moves neither appreciably. This is the one place an arm is
+      cleaner, on instruments that need no ground truth.</li>
   <li>1,175 genes are testable on one reference only, and 278 of them are
       eGenes — associations available on one reference and not the other, invisible to any
       matched-gene comparison.</li>

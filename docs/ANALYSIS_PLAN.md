@@ -206,7 +206,7 @@ roughly doubles relative to its effect term (0.111 to 0.218), while the referenc
 shifts (0.117 to 0.138). Pangenomic alignment measurably changes genotype certainty in
 duplicated sequence specifically, even though the estimate still dominates.
 
-**Describe background-noise properties per arm.** `[COMPLETE — standard-error stage]`
+**Background noise, standard-error stage.** `[COMPLETE]`
 Run root `runs/background_noise_by_arm_20260816`.
 
 Standard error at matched allele frequency is the natural measure: an arm whose standard
@@ -232,6 +232,70 @@ This confirms the decomposition and extends it: that result showed the *differen
 paired estimates is carried by the effect and not the standard error; this shows the *level* of
 noise is the same in every arm, including in exactly the hard sequence where a gain would be
 most expected.
+
+
+---
+
+**Describe background-noise properties per arm.** `[COMPLETE — all three stages]`
+Run roots `runs/background_noise_by_arm_20260816` (standard error) and
+`runs/background_noise_hwe_ab_20260817` (Hardy-Weinberg, allele balance).
+
+The standard-error stage is recorded above and found no arm quieter than another anywhere. The
+two remaining instruments ask a different question, and give a different answer.
+
+*Why these two.* BrainVar has no per-donor assemblies, so nothing can say which arm is correct.
+These come closest, because they test properties a callset must have whatever reference
+produced it. Two paralogous copies collapsed onto one locus make every carrier look
+heterozygous, so **excess heterozygosity** beyond Hardy-Weinberg expectation is the classic
+collapse signature. And a true diploid heterozygote should draw about half its reads from each
+allele, so a **skewed heterozygote allele balance** means the reads at that site are not coming
+from one diploid locus. Neither says the arm without the signature is right; both say the arm
+with it is more often measuring something other than a single diploid locus.
+
+Scanned across chr1, chr6, chr16, chr22 and chrX in all four DeepVariant arms, requiring at
+least 10 heterozygotes per site and 10 reads per heterozygote, then **matched on
+1,654,230 variants present in all four arms** in the common frame.
+
+| Arm | Excess het, ordinary | Excess het, duplicated | Skewed-het share, ordinary | Skewed-het share, duplicated |
+|---|---|---|---|---|
+| linear · GRCh38 | 0.204% | **0.283%** | 0.0396 | **0.0648** |
+| graph · GRCh38 | 0.195% | **0.087%** | 0.0364 | **0.0388** |
+| linear · T2T | 0.200% | **0.262%** | 0.0393 | **0.0561** |
+| graph · T2T | 0.192% | **0.082%** | 0.0362 | **0.0388** |
+
+**Pangenomic alignment removes the duplicated-sequence penalty; the reference change does
+not.** In the linear arms duplicated sequence carries clearly elevated collapse signatures —
+excess heterozygosity 0.283% against
+0.204% in ordinary sequence, and a skewed-het
+share of 0.0648 against
+0.0396. In the graph arms that elevation
+is gone: the duplicated skewed-het share
+(0.0388) is essentially its ordinary-sequence
+value (0.0364).
+
+Paired on the same variants, the aligner swap in duplicated sequence moves excess heterozygosity
+by **−0.195 percentage points** on GRCh38 and −0.180 on T2T, and the mean skewed-het share by
+−0.026 and −0.017 (p < 1e-150 throughout). The reference swap in the same sequence moves excess
+heterozygosity by −0.021 and −0.005 points, and its effect on allele balance is **not
+significant at all** on the graph axis (p = 0.75).
+
+**This is the first result in the project where one arm is cleaner, and it does not contradict
+the standard-error stage — it separates two things that were being conflated.** A standard
+error is the precision of an estimate given the genotypes. Excess heterozygosity and allele
+balance ask whether the genotypes describe one diploid locus. Pangenomic alignment buys no
+precision and does buy genotype fidelity in duplicated sequence, which is exactly where a
+haplotype-aware method should help.
+
+*Bounds.* The direction is partly by construction: haplotype-aware alignment is designed to
+stop paralogous reads collapsing, so finding that it does is confirmation the method works as
+intended rather than a surprise. What is new is the magnitude, measured on instruments that
+need no ground truth. The matched set also requires a variant to be called and to pass the
+heterozygote-count filter in *all four* arms, which in duplicated sequence selects the more
+tractable sites — 1,654,230 matched against 46,913–53,850 per arm marginally —
+so this understates the difference at the hardest sites rather than overstating it. One further
+oddity is worth flagging rather than celebrating: in the graph arms excess heterozygosity in
+duplicated sequence is *lower* than in ordinary sequence, which that selection may explain and
+which is not otherwise expected.
 
 **Consequence for the project's framing.** Signal-to-noise, in the ordinary sense of a smaller
 standard error around the same quantity, is not what any of these method changes buy. What they
