@@ -514,6 +514,13 @@ t_coloc_traits = table(
          "called-in-either counts are modest, so the ordering itself is a tendency; the "
          "pooled brain-against-other test quoted in the text is the claim being made.")
 
+EG = DATA["egene_counts"]
+EGENE_UNION = EG["union"]
+_pp = DATA["coloc"]["pp4_shift_by_denominator"]
+PP4_CALLED = _pp["called_in_either"]["median"]
+PP4_STRONG = _pp["strong_in_either"]["median"]
+PP4_STRONG_MOVE = _pp["strong_in_either"]["share_moving_over_0.2"]
+
 AO = DATA["allele_orientation"]
 _g38 = ("linear_grch38_dv", "graph_grch38_dv")
 flip_lin = AO["linear_grch38_dv"]["flipped_share"]
@@ -841,6 +848,19 @@ changes when you swap the aligner, and where on the genome the two disagree.">
   the genome — and it is the part that is difficult to align <em>because</em> it varies so
   much between people, which is the same reason it carries disease.</p>
   <p class="byline">Joseph Lalli</p>
+  <div class="callout" style="margin-top:1.5rem">
+  <p><strong>Provisional — exploratory results, not yet a finished analysis.</strong> An
+  external review in August 2026 identified limits that this page is still being corrected
+  for. What it establishes is that these pipeline choices <em>change eQTL results</em>, and
+  where. It does <strong>not</strong> establish that either reference or aligner yields more
+  biologically accurate results: BrainVar has no per-donor assemblies, so no analysis here has
+  ground truth. Three specific cautions. The reference contrast is not a clean single-factor
+  comparison, because expression is quantified per reference — it measures an end-to-end
+  pipeline effect. The discordance windows are a ranked outlier map, not FDR-controlled
+  discoveries. And the gene-class and disease enrichments computed on those windows are
+  exploratory associations, not matched tests. Details and the correction queue are in
+  <code>docs/REVIEW_FINDINGS_20260819.md</code>.</p>
+  </div>
 </header>
 
 <nav class="toc">
@@ -871,8 +891,8 @@ changes when you swap the aligner, and where on the genome the two disagree.">
     unchanged when the aligner is swapped</span></div>
   <div><span class="n">{gd_or_lo:.1f}–{gd_or_hi:.1f}×</span><span class="l">enrichment of the
     genes that do move for genomic-disorder loci</span></div>
-  <div><span class="n">{int_total:,}</span><span class="l">eGenes across the four arms
-    at k = 35</span></div>
+  <div><span class="n">{EGENE_UNION:,}</span><span class="l">distinct eGenes across the four
+    arms at k = 35 ({int_total:,} arm-level calls)</span></div>
   <div><span class="n">{HS["nominal_rows"] / 1e6:.0f}M</span><span class="l">cis pairs in
     the all-variant nominal scan</span></div>
   <div><span class="n">225</span><span class="l">donors (92 XX, 133 XY)</span></div>
@@ -896,7 +916,14 @@ reference; nothing is lifted over between arms to make them comparable, because 
 over is exactly the operation whose necessity is under test.</p>
 
 <p>Because all four arms run the same code with the same parameters, a difference between
-them is attributable to the reference and the aligner. That is the design's whole value: the two
+them is attributable to the reference and the aligner. That is the design's intent, and it
+holds for the aligner axis but <strong>not</strong> for the reference axis. Expression is
+quantified once per <em>reference</em> rather than once per arm, so swapping aligner holds the
+phenotype exactly fixed while swapping reference changes the genotypes, the RNA alignment and
+annotation, the expression covariates, and sometimes the set of testable genes. The reference
+contrast therefore measures an end-to-end <strong>reference ecosystem effect</strong>, not an
+isolated genotype-reference effect, and every reference-axis number below should be read that
+way. The two
 factors are crossed, so each can be read off separately, and an effect that appears
 under only one level of the other factor is identifiable as exactly that.</p>
 
@@ -1019,7 +1046,9 @@ changes are the same signal wearing a different label.</strong> Only about
 {ld_indep_ref:.0%} of them are effectively independent under a reference swap.</p>
 
 <p>Compounding the two stages gives the number that matters: a reference swap leaves roughly
-<strong>{net_ref:.0%} of shared eGenes</strong> with a genuinely different causal candidate, and
+<strong>{net_ref:.0%} of shared eGenes</strong> whose two leads are low-LD proxies rather
+than tags of one signal — association and linkage alone cannot establish that these are
+different <em>causal</em> variants, only that they are not obviously the same one — and
 an aligner swap about {net_wf:.0%}. That is a far weaker claim than four-in-ten, and it is the
 correct one.</p>
 
@@ -1432,7 +1461,13 @@ centred on zero with unit spread by construction, so a normal null predicts a fi
 upper tail, and the amount by which the observed rate exceeds it estimates how much of the
 flagged set is noise. Holding that estimate at five percent puts the cut at z between
 {cut_lo:.2f} and {cut_hi:.2f} and leaves <strong>{exc_lo:,} to {exc_hi:,} windows per
-contrast</strong> discordant beyond chance.</p>
+contrast</strong> above that cut. <strong>These are a ranked outlier map, not
+FDR-controlled discoveries.</strong> The only null actually simulated — a chromosome-wise
+circular rotation, which preserves linkage — returned no genome-wide discoveries at all. The
+five percent quoted here comes instead from a normal upper tail, and the observed statistic is
+demonstrably heavier-tailed and right-skewed than normal, so the true false-discovery
+proportion is uncalibrated rather than conservative. Treat the windows as a shortlist worth
+investigating, and read every enrichment computed on them in that light.</p>
 
 {t_exc}
 
@@ -1686,7 +1721,8 @@ and
 
 <p>This is not a power artifact — the null stratum is the larger one, with 133 XY donors
 against 92 XX. Nor is it a ploidy-encoding artifact: chromosome X dosages were audited in all
-four arms and are encoded identically, with hemizygous genotypes appearing as heterozygous in
+four arms and no arm uses diploid encoding for hemizygous X, with hemizygous genotypes
+appearing as heterozygous in
 under 2.5% of XY calls in every arm against about 29% in XX.</p>
 
 <div class="callout">
@@ -1901,8 +1937,19 @@ moves at all: the median change in PP4 is
 {COL["t2t_minus_grch38_linear"]["median_abs_pp4_difference"]:.4f} under a reference swap and
 {COL["graph_minus_linear_grch38"]["median_abs_pp4_difference"]:.5f} under an aligner swap,
 with correlations of {COL["t2t_minus_grch38_linear"]["pp4_pearson_r"]:.3f} and
-{COL["graph_minus_linear_grch38"]["pp4_pearson_r"]:.3f}. Most of the churn is a posterior
-sitting near the threshold and crossing it, not a conclusion being overturned.</p>
+{COL["graph_minus_linear_grch38"]["pp4_pearson_r"]:.3f}.</p>
+
+<div class="callout">
+<p><strong>That median is over the wrong denominator, and the honest figures are larger.</strong>
+It averages across all {COL["t2t_minus_grch38_linear"]["tested_in_both"]:,} gene-trait pairs
+tested in both arms, the great majority of which carry no signal in either and so cannot move.
+Restricted to the pairs where a call actually exists, the median posterior shift under a
+reference swap is <strong>{PP4_CALLED:.4f}</strong> — about ten times the all-pairs figure —
+and among pairs reaching PP4 ≥ 0.5 in either arm it is <strong>{PP4_STRONG:.4f}</strong>, with
+<strong>{PP4_STRONG_MOVE:.0%}</strong> moving by more than 0.2. The reported correlation is
+inflated the same way. So the reassurance is real for the map as a whole and much weaker for
+the claims a paper would actually make.</p>
+</div>
 
 <div class="callout">
 <p><strong>An earlier version of this page reported these numbers two to five times
@@ -1941,9 +1988,13 @@ is worth making inside and outside the discordance windows separately.</p>
 {COLS["graph_minus_linear_grch38"]["odds_ratio"]:.1f} times the odds on the aligner axis and
 {COLS["t2t_minus_grch38_linear"]["odds_ratio"]:.2f} times on the reference axis. That is this
 page's central regional claim reproducing at the endpoint a reader actually cares about, and on
-an instrument that shares no statistics with the one that defined the windows: those were drawn
-from eQTL test statistics, and this is a posterior computed over two independent effect
-profiles.</p>
+the endpoint a reader cares about. It is <strong>not</strong> an independent confirmation, and
+an earlier version of this page wrongly said it was: the windows were defined from the same
+nominal association scan that supplies the eQTL side of this colocalisation, and a window is
+flagged precisely because the arms' effect estimates diverge most there. The GWAS side is
+independent but is common to both arms and cancels from the contrast. Read this as an
+internal-consistency check — the regional signal propagates to a downstream endpoint — rather
+than as corroboration from a separate instrument.</p>
 
 <p>It also means the genome-wide figures in the table above understate the case where it
 matters. Working inside these regions, roughly
@@ -2047,7 +2098,8 @@ which is a different experiment from this one.</p>
       swap nominates a different lead variant for {1 - lead_ref_same_hi:.0%} to
       {1 - lead_ref_same_lo:.0%} of shared eGenes, but {ld_same_ref:.0%} of those pairs are in
       high linkage disequilibrium. Only about {net_ref:.0%} of shared eGenes end up with a
-      genuinely different causal candidate.</li>
+      lead whose LD with the other arm's is low enough that they are not obviously tagging one
+      signal. Association and linkage cannot show these are different causal variants.</li>
   <li><strong>A reference swap changes about a third of colocalisation calls and an aligner
       swap about one in twenty-five</strong> ({col_ref:.0%} and {col_wf:.0%} of the union),
       but the calls that move are the marginal ones. Among pairs already confident in at
@@ -2065,8 +2117,9 @@ which is a different experiment from this one.</p>
       Calls change {COLS["graph_minus_linear_grch38"]["odds_ratio"]:.1f} times more often
       inside the discordance windows on the aligner axis and
       {COLS["t2t_minus_grch38_linear"]["odds_ratio"]:.2f} times on the reference axis — the
-      central regional claim reproducing on an instrument that shares no statistics with the
-      one that defined those windows.</li>
+      central regional signal propagating to a downstream endpoint. This is an
+      internal-consistency check, not independent corroboration: the windows were defined from
+      the same nominal scan that supplies the eQTL side.</li>
   <li><strong>The trait prediction is untestable with GRCh38-based GWAS, not refuted.</strong>
       Brain-trait colocalisations appear to change less (odds ratio 0.70, p = 0.014), and that
       survives checks on study source, call confidence and coverage. It does not survive
@@ -2088,7 +2141,8 @@ which is a different experiment from this one.</p>
       is measurably less noisy than any other — including in duplicated sequence, where a gain
       would be most expected. These are not noise reductions; they are changes in what is
       being measured.</li>
-  <li><strong>Precision is not fidelity, and pangenomic alignment buys the second.</strong>
+  <li><strong>Pangenomic alignment reduces collapse-compatible QC signatures in duplicated
+      sequence.</strong>
       In duplicated sequence the linear arms carry the signatures of collapsed paralogues —
       excess heterozygosity {GFM["linear_grch38_dv"]["duplicated"]["excess_het_rate"]:.3%} of
       sites and a skewed heterozygote allele balance at
@@ -2121,7 +2175,7 @@ which is a different experiment from this one.</p>
       aligner choice does, and that disagreement is spatially concentrated rather than
       diffuse.</li>
   <li>Between {exc_lo:,} and {exc_hi:,} windows per contrast — five to seven percent of the
-      testable genome — are discordant beyond chance at an estimated 5% false-discovery
+      testable genome — sit above a cut placed at an estimated 5% false-discovery
       proportion. Regional disagreement is not confined to a few loci.</li>
   <li>{AGREE["flagged_under_both_aligners"]["n"]:,} of the {AGREE["union"]:,} windows a
       reference contrast flags are flagged under both aligners. The reference effect is a
