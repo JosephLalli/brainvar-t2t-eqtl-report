@@ -1,6 +1,14 @@
 # Current state
 
-**Updated:** 2026-08-17. Update this file at the end of every work session, in the same
+> **STOP — read `REVIEW_FINDINGS_20260819.md` first.** Three adversarial reviews were run on
+> 2026-08-19. Two claims currently live on the public page are demonstrably wrong (the
+> colocalisation "independent instrument" claim, and "chrX dosages encoded identically"), and a
+> confound was found that threatens the reference-axis flagged set and the gene-class
+> enrichments computed on it: **expression is quantified per reference, not per arm**, so a
+> reference swap changes the phenotype as well as the genotypes. The headline 9× magnitude
+> ratio survives; the flagged-set identity may not. Do not add new analyses before reading it.
+
+**Updated:** 2026-08-20. Update this file at the end of every work session, in the same
 session as the work. A run root without a line here is invisible to the next contributor.
 
 ## Next action
@@ -49,7 +57,7 @@ and is the single most informative thing left to do.
 | Gene classes | Method-sensitive genes enriched for ClinGen recurrent-CNV regions (OR 2.9–9.1), human accelerated regions (OR 1.7–1.9), segmental duplications (OR 1.7–2.5) — all four contrasts, 12/12 positive. MHC OR 2.5–3.8. | `discordant_gene_classes_20260816` |
 | Gene classes | Aligner effect is only ~50% portable across references (gene Jaccard 0.495); reference effect is 92% portable across aligners (0.919). | `gene_discordance_disease_20260816` |
 | Calibration | **Negative, and worth keeping:** genome-wide family-wise rotation test returns 0 of 106,342 window tests. A circular shift relocates the signal rather than removing it, so the null max ≈ observed max (ratio 1.02). A shift null tests *position*, not *magnitude*, and cannot certify these windows. | `genomewide_window_discordance_fwer_20260816` |
-| chrX by sex | The chrX aligner effect is **XX-specific**: graph−linear·T2T moves 34.6% of chrX genes in XX against 6.8% autosomal (OR 7.27, p = 3.8×10⁻⁸⁵), while the other seven contrast-by-stratum cells show nothing (OR 0.16–0.91). Not power — XY has 133 donors to XX's 92. chrX dosage encoding is identical across all four arms, so differential ploidy handling is excluded. | `chrx_discordance_by_sex_20260816` |
+| chrX by sex | The chrX aligner effect is **XX-specific**: graph−linear·T2T moves 34.6% of chrX genes in XX against 6.8% autosomal (OR 7.27, p = 3.8×10⁻⁸⁵), while the other seven contrast-by-stratum cells show nothing (OR 0.16–0.91). Not power — XY has 133 donors to XX's 92. chrX dosage encoding was audited in all four arms: hemizygous calls appear heterozygous in 1.7–2.5% of XY genotypes against ~28.9% in XX, so no arm uses diploid encoding — but the arms differ by 1.47x in that residual and by 1.49x in chrX rows tested, so gross ploidy mishandling is excluded and 'identical' is **not** supported (see REVIEW_FINDINGS_20260819.md). The null cells were also tested one-sided, so the 4–6x depletions reported as 'nothing' are untested. | `chrx_discordance_by_sex_20260816` |
 | Effect vs precision | Both axes are **effect-dominated**, not precision-dominated — 93.9% (reference) and 94.9% (aligner) of variants; median se ratio 1.0017 and 1.0000. Neither method change buys precision; both change what is measured. In duplicated sequence the aligner's precision term doubles relative to its effect term while the reference's barely moves. Refutes the hypothesis stated in the plan. | `effect_precision_and_af_20260816` |
 | Allele-frequency concordance | Median \|ΔAF\| exactly 0 in all four contrasts. Exactly equal at 70% (reference) and 82–83% (aligner); within 0.01 at 96.2% and 98.4%. The **1.6–3.9% beyond 0.01 is the caution map**, unsigned. Worst chromosomes (chr19, chr22, chr17, chrX, chr6, chr21) match the eQTL-derived hotspots, from an instrument sharing no statistics with them. | `effect_precision_and_af_20260816` |
 | Gene universe | The 159-gene net difference between universes hides a **1,175-gene turnover**: 667 genes testable only on GRCh38, 508 only on T2T, and **278 of them are eGenes**. Exclusive genes are more often eGenes than shared ones (26.2% / 21.7% vs 20.8%). T2T-exclusive genes are ~4x as duplicated as shared genes. Majority are absent from the other annotation entirely, so annotation release explains much of the turnover. | `gene_universe_asymmetry_20260816` |
