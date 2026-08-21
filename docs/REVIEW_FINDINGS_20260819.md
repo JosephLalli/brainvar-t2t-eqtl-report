@@ -5,8 +5,9 @@ reproducibility) were run against the page, the generator, the docs and the run 
 records what was **verified against the run tree**, what is **reported but unverified**, and
 what survives. Roughly 45 findings were returned; the ones that change conclusions are here.
 
-**The page is currently live at the state described below and carries at least two claims that
-are demonstrably wrong.** Fix those before adding anything new.
+**Findings 1-4, 6 and 7 are closed and the corrections are live.** What remains is finding 5 (a
+manifest contradicting its own directory, in the analysis workspace) and the provenance and
+Methods-completeness items in the unverified section.
 
 ---
 
@@ -109,6 +110,8 @@ inflated the same way.
 304,294 / 261,596 (**1.49× spread**). The two arms of the GRCh38 aligner contrast differ by 48%
 in how much chrX they test. That sentence is the control guarding the OR 7.27 result.
 
+**Closed 2026-08-21.** The false sentence was removed earlier; the page now also carries the spread the audit shows — 1.47x in residual XY het-like share and 1.49x in chromosome X rows tested — and states what the control does and does not establish. It also records the direction that matters: the contrast producing the effect (graph - linear T2T) is the closer-matched aligner pair at 1.16x, while the contrast showing nothing is the badly matched one at 1.49x, so a testing imbalance large enough to manufacture the positive result would have had to manufacture it in the null contrast first.
+
 ### 5. A manifest contradicts its own directory
 
 The same run's `MANIFEST.json` records `"dosage_audit": {"skipped": "no sex labels resolved"}`
@@ -121,11 +124,15 @@ sub-threshold immune terms at length. `runs/gene_discordance_disease_20260816` s
 contrast (`graph − linear · T2T`) returns **HP:0001419 X-linked recessive inheritance,
 p = 2.8e-6** and HP:0001417 X-linked inheritance. The above-threshold result is omitted.
 
+**Closed 2026-08-21.** Both terms are now on the page in their own table, with term size, intersection and corrected p. They are worth more than the correction: the contrast that returns them, graph - linear T2T, is the same contrast that produces the chromosome X result, and the two measurements share no statistic — one is a per-gene discordance rate stratified by donor sex, the other a gene-set enrichment over inheritance-mode annotations computed genome-wide without reference to sex or chromosome. That is the strongest internal agreement on the page. It remains internal: both ultimately read the same nominal scan.
+
 ### 7. The page contradicts itself on the yardstick
 
 "The yardstick is missing" and "a reference swap is the smallest of the three method changes"
 both appear. The first is stale text that survived the yardstick workstream. The lead-variant
 LD caveat ("has not been computed") is stale in the same way.
+
+**Closed 2026-08-21.** The stale 'the yardstick is missing' bullet is replaced by the accurate residual — the yardstick exists at the allele-frequency stage and not at the association level, because scoring the caller axis through the window and gene pipelines needs its own genotype derivation and association run. The stale lead-variant LD caveat is likewise replaced by the measured result (median r2 = 0.85 across 939 switched leads).
 
 ---
 

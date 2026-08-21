@@ -290,6 +290,8 @@ lead_ref_same_hi = max(LEAD[k]["share_same_lead"] for k in REF_KEYS)
 lead_wf_same_lo = min(LEAD[k]["share_same_lead"] for k in WF_KEYS)
 lead_wf_same_hi = max(LEAD[k]["share_same_lead"] for k in WF_KEYS)
 
+_ld = DATA["lead_switch_ld"]["by_contrast"]["t2t_minus_grch38_linear"]
+
 t_lead = table(
     ["Contrast", "eGenes in both arms", "Same lead variant", "Lead changes",
      "Median move", "Crosses the TSS"],
@@ -302,9 +304,12 @@ t_lead = table(
     cls="numeric",
     note="Restricted to genes that are eGenes in both arms, so differences in yield cannot "
          "contribute. Leads are compared on normalised variant identity rather than on "
-         "coordinates. Distance is a weak proxy for whether two leads tag the same signal — "
-         "the measurement that would settle that is linkage disequilibrium between them, "
-         "which has not been computed.")
+         "coordinates. Distance is a weak proxy for whether two leads tag the same signal; "
+         "linkage disequilibrium between the two leads is the measurement that settles it, and "
+         "it is reported below — median r² = "
+         f"{_ld['median_r2']:.2f} across {_ld['switched_leads']:,} switched leads on the "
+         f"reference axis, of which {_ld['share_r2_below_0.2']:.0%} fall below "
+         "r² = 0.2.")
 
 BGN = DATA["background_noise"]["by_arm"]
 BGR = DATA["background_noise"]["ratios"]
@@ -575,6 +580,24 @@ t_genotype_classes = table(
          f'({XGC["discordant_rate"]:.1%}) at z &gt; {XGC["gene_cut"]:.2f}. The two flagged sets '
          f'are different sizes, so the odds ratios are comparable in direction and in rough '
          f'magnitude, not to the second decimal.')
+
+GCE = DATA["gene_class_enrichment_terms"]
+GCE_HIT = {k: v for k, v in GCE["by_contrast"].items() if v}
+GCE_KEY = next(iter(GCE_HIT))
+GCE_TERMS = GCE_HIT[GCE_KEY]
+CXD = DATA["chrx_dosage_audit"]
+
+t_enrichment_terms = table(
+    ["Term", "Source", "Genes in term", "Moved genes in it", "p"],
+    [[t["name"], t["source"], f'{t["term_size"]:,}', f'{t["intersection_size"]}',
+      sci(t["p_value"])] for t in GCE_TERMS],
+    cls="numeric",
+    note=f'The only terms above threshold in any of the four contrasts, all from '
+         f'{CONTRAST_LABEL[GCE_KEY]}. Queried over {", ".join(GCE["sources"])} from the '
+         f'{GCE_TERMS[0]["query_size"]:,} moved genes of that contrast, against a background of '
+         f'{GCE["background"]}. p-values are already corrected for multiple testing by the enrichment '
+         f'service, which is why the other three contrasts return nothing rather than a long '
+         f'weak list.')
 
 MC = XD["matched_classes"]
 MCR = MC["results"]
@@ -1843,13 +1866,29 @@ exactly this kind. The claim is not that they have been getting wrong answers. I
 are the fields for which representation choice is not free, while most of genetics can
 reasonably continue to treat it as inert.</p>
 
-<p>Formal pathway enrichment of the moved genes is, correctly, almost empty: against a
-background of the genes tested in the same contrast, no term survives multiple-testing
-correction in three of the four contrasts. Below the threshold the same biology recurs across
-contrasts — MHC class I antigen processing and presentation, T-cell receptor signalling,
-allograft rejection, Fc-receptor activation — which is what one would expect if the effect is
-carried by the MHC and the Fc-receptor loci rather than by immune pathways at large. It is
-reported here as a consistent tendency, not as enrichment.</p>
+<p>Formal pathway enrichment of the moved genes is almost empty, and the one place it is
+not is worth more than the emptiness. Against a background of the genes tested in the same
+contrast, no term survives multiple-testing correction in three of the four contrasts. Below
+the threshold the same biology recurs across them — MHC class I antigen processing and
+presentation, T-cell receptor signalling, allograft rejection, Fc-receptor activation — which
+is what one would expect if the effect is carried by the MHC and the Fc-receptor loci rather
+than by immune pathways at large, and it is reported as a tendency rather than as
+enrichment.</p>
+
+<p><strong>The fourth contrast returns two terms above threshold, and both are chromosome
+X.</strong></p>
+
+{t_enrichment_terms}
+
+<p>That is the same contrast, on the same axis, that produces
+<a href="#chrx">the chromosome X result</a> — and it arrives from a different instrument. The
+chrX finding is a per-gene discordance rate stratified by donor sex. This is a gene-set
+enrichment over inheritance-mode annotations, computed without reference to sex, to
+chromosome, or to the stratified maps at all; the moved-gene list it queries was defined
+genome-wide. Two measurements that share no statistic landing on the same contrast is the
+strongest internal agreement on this page. It remains internal — both ultimately read the same
+nominal scan — and an inheritance-mode annotation is a property of the genes, so this says the
+moved set is X-enriched rather than that any particular gene moved for a reason.</p>
 
 <h2 id="universe">The genes that were never askable</h2>
 
@@ -1989,7 +2028,21 @@ and
 against 92 XX. Nor is it a ploidy-encoding artifact: chromosome X dosages were audited in all
 four arms and no arm uses diploid encoding for hemizygous X, with hemizygous genotypes
 appearing as heterozygous in
-under 2.5% of XY calls in every arm against about 29% in XX.</p>
+under {max(c["xy_share_het_like"] for c in CXD["cells"].values()):.1%} of XY calls in every arm
+against about {max(c["xx_share_het_like"] for c in CXD["cells"].values()):.0%} in XX.</p>
+
+<p>That control is weaker than it first looks and is stated at its real strength here. Gross
+ploidy mishandling is excluded, but the arms are not identical: the residual het-like share in
+XY spans {CXD["xy_het_like_spread"]:.2f}× across the four arms, and the number of chromosome X
+rows each arm tests spans {CXD["chrx_rows_spread"]:.2f}×. So "the two arms encode chromosome X
+the same way" is not something this audit establishes. What it does establish runs the right
+way for the result: the contrast that produces the effect,
+{CONTRAST_LABEL["graph_minus_linear_t2t"]}, is the more closely matched pair of the two aligner
+contrasts at {CXD["rows_ratio_t2t_aligner_contrast"]:.2f}× in rows tested, while the contrast
+that shows <em>nothing</em> is the badly matched one at
+{CXD["rows_ratio_grch38_aligner_contrast"]:.2f}×. A testing imbalance large enough to
+manufacture the positive result would have had to manufacture it in the other contrast
+first.</p>
 
 <div class="callout">
 <p><strong>One mechanism accounts for all four rows.</strong> Pangenomic alignment resolves
@@ -2498,10 +2551,15 @@ which is a different experiment from this one.</p>
       sequencing with no per-donor assemblies, so nothing here can say which arm is
       <em>correct</em> — only which differ, and where. Every result on this page is a
       description of difference, not a verdict on a reference.</li>
-  <li><strong>The yardstick is missing.</strong> Reference and aligner effects have not yet
-      been placed against a change nobody considers controversial. Repeating the analysis with
-      a different variant caller would say whether a reference swap perturbs a map more or
-      less than a routine tooling decision, and that comparison is the one a reader needs.</li>
+  <li><strong>The yardstick stops at allele frequency.</strong> The variant-caller
+      comparison that anchors the other two axes — a reference swap moves
+      {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of allele frequencies against
+      {DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a caller swap — exists only at that
+      stage. Nothing here says whether a caller swap would perturb the <em>association</em> map
+      more or less than a reference swap does, because scoring the caller axis through the same
+      window and gene pipelines needs its own genotype derivation and association run. The
+      anchor a reader needs for the effect sizes on this page is therefore only half
+      present.</li>
   <li><strong>What colocalisation cannot see.</strong> A gene-trait pair is only testable
       where a GWAS already has an association inside the gene's window, so the loci examined
       are the ones GWAS has already resolved. If representation choice bites hardest where

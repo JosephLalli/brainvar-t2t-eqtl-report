@@ -345,7 +345,7 @@ Restrict attention to genes that <em>both</em> arms call as eGenes — no yield 
 ranking effect, the two arms agreeing that the gene has a signal — and ask whether they agree
 about which variant carries it.</p>
 
-<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>eGenes in both arms</th><th>Same lead variant</th><th>Lead changes</th><th>Median move</th><th>Crosses the TSS</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>2,540</td><td><strong>58.4%</strong></td><td>41.6%</td><td>14.3 kb</td><td>26%</td></tr><tr><td>T2T − GRCh38 · graph</td><td>2,516</td><td><strong>59.3%</strong></td><td>40.7%</td><td>14.4 kb</td><td>23%</td></tr><tr><td>graph − linear · GRCh38</td><td>2,915</td><td><strong>78.5%</strong></td><td>21.5%</td><td>11.2 kb</td><td>20%</td></tr><tr><td>graph − linear · T2T</td><td>2,940</td><td><strong>76.2%</strong></td><td>23.8%</td><td>13.0 kb</td><td>19%</td></tr></tbody></table></div><p class="tnote">Restricted to genes that are eGenes in both arms, so differences in yield cannot contribute. Leads are compared on normalised variant identity rather than on coordinates. Distance is a weak proxy for whether two leads tag the same signal — the measurement that would settle that is linkage disequilibrium between them, which has not been computed.</p>
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>eGenes in both arms</th><th>Same lead variant</th><th>Lead changes</th><th>Median move</th><th>Crosses the TSS</th></tr></thead><tbody><tr><td>T2T − GRCh38 · linear</td><td>2,540</td><td><strong>58.4%</strong></td><td>41.6%</td><td>14.3 kb</td><td>26%</td></tr><tr><td>T2T − GRCh38 · graph</td><td>2,516</td><td><strong>59.3%</strong></td><td>40.7%</td><td>14.4 kb</td><td>23%</td></tr><tr><td>graph − linear · GRCh38</td><td>2,915</td><td><strong>78.5%</strong></td><td>21.5%</td><td>11.2 kb</td><td>20%</td></tr><tr><td>graph − linear · T2T</td><td>2,940</td><td><strong>76.2%</strong></td><td>23.8%</td><td>13.0 kb</td><td>19%</td></tr></tbody></table></div><p class="tnote">Restricted to genes that are eGenes in both arms, so differences in yield cannot contribute. Leads are compared on normalised variant identity rather than on coordinates. Distance is a weak proxy for whether two leads tag the same signal; linkage disequilibrium between the two leads is the measurement that settles it, and it is reported below — median r² = 0.85 across 939 switched leads on the reference axis, of which 12% fall below r² = 0.2.</p>
 
 <p>They agree 58% to 59% of the time under a reference
 swap and 76% to 78% under an aligner swap. <strong>Four
@@ -1084,13 +1084,29 @@ exactly this kind. The claim is not that they have been getting wrong answers. I
 are the fields for which representation choice is not free, while most of genetics can
 reasonably continue to treat it as inert.</p>
 
-<p>Formal pathway enrichment of the moved genes is, correctly, almost empty: against a
-background of the genes tested in the same contrast, no term survives multiple-testing
-correction in three of the four contrasts. Below the threshold the same biology recurs across
-contrasts — MHC class I antigen processing and presentation, T-cell receptor signalling,
-allograft rejection, Fc-receptor activation — which is what one would expect if the effect is
-carried by the MHC and the Fc-receptor loci rather than by immune pathways at large. It is
-reported here as a consistent tendency, not as enrichment.</p>
+<p>Formal pathway enrichment of the moved genes is almost empty, and the one place it is
+not is worth more than the emptiness. Against a background of the genes tested in the same
+contrast, no term survives multiple-testing correction in three of the four contrasts. Below
+the threshold the same biology recurs across them — MHC class I antigen processing and
+presentation, T-cell receptor signalling, allograft rejection, Fc-receptor activation — which
+is what one would expect if the effect is carried by the MHC and the Fc-receptor loci rather
+than by immune pathways at large, and it is reported as a tendency rather than as
+enrichment.</p>
+
+<p><strong>The fourth contrast returns two terms above threshold, and both are chromosome
+X.</strong></p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Term</th><th>Source</th><th>Genes in term</th><th>Moved genes in it</th><th>p</th></tr></thead><tbody><tr><td>X-linked recessive inheritance</td><td>HP</td><td>120</td><td>26</td><td>2.8 × 10<sup>−6</sup></td></tr><tr><td>X-linked inheritance</td><td>HP</td><td>174</td><td>32</td><td>3.0 × 10<sup>−6</sup></td></tr></tbody></table></div><p class="tnote">The only terms above threshold in any of the four contrasts, all from graph − linear · T2T. Queried over GO:BP, HP, REAC, WP from the 722 moved genes of that contrast, against a background of the genes tested in the same contrast, not the genome. p-values are already corrected for multiple testing by the enrichment service, which is why the other three contrasts return nothing rather than a long weak list.</p>
+
+<p>That is the same contrast, on the same axis, that produces
+<a href="#chrx">the chromosome X result</a> — and it arrives from a different instrument. The
+chrX finding is a per-gene discordance rate stratified by donor sex. This is a gene-set
+enrichment over inheritance-mode annotations, computed without reference to sex, to
+chromosome, or to the stratified maps at all; the moved-gene list it queries was defined
+genome-wide. Two measurements that share no statistic landing on the same contrast is the
+strongest internal agreement on this page. It remains internal — both ultimately read the same
+nominal scan — and an inheritance-mode annotation is a property of the genes, so this says the
+moved set is X-enriched rather than that any particular gene moved for a reason.</p>
 
 <h2 id="universe">The genes that were never askable</h2>
 
@@ -1237,7 +1253,21 @@ and
 against 92 XX. Nor is it a ploidy-encoding artifact: chromosome X dosages were audited in all
 four arms and no arm uses diploid encoding for hemizygous X, with hemizygous genotypes
 appearing as heterozygous in
-under 2.5% of XY calls in every arm against about 29% in XX.</p>
+under 2.5% of XY calls in every arm
+against about 29% in XX.</p>
+
+<p>That control is weaker than it first looks and is stated at its real strength here. Gross
+ploidy mishandling is excluded, but the arms are not identical: the residual het-like share in
+XY spans 1.47× across the four arms, and the number of chromosome X
+rows each arm tests spans 1.49×. So "the two arms encode chromosome X
+the same way" is not something this audit establishes. What it does establish runs the right
+way for the result: the contrast that produces the effect,
+graph − linear · T2T, is the more closely matched pair of the two aligner
+contrasts at 1.16× in rows tested, while the contrast
+that shows <em>nothing</em> is the badly matched one at
+1.49×. A testing imbalance large enough to
+manufacture the positive result would have had to manufacture it in the other contrast
+first.</p>
 
 <div class="callout">
 <p><strong>One mechanism accounts for all four rows.</strong> Pangenomic alignment resolves
@@ -1781,10 +1811,15 @@ which is a different experiment from this one.</p>
       sequencing with no per-donor assemblies, so nothing here can say which arm is
       <em>correct</em> — only which differ, and where. Every result on this page is a
       description of difference, not a verdict on a reference.</li>
-  <li><strong>The yardstick is missing.</strong> Reference and aligner effects have not yet
-      been placed against a change nobody considers controversial. Repeating the analysis with
-      a different variant caller would say whether a reference swap perturbs a map more or
-      less than a routine tooling decision, and that comparison is the one a reader needs.</li>
+  <li><strong>The yardstick stops at allele frequency.</strong> The variant-caller
+      comparison that anchors the other two axes — a reference swap moves
+      2.47% of allele frequencies against
+      6.17% for a caller swap — exists only at that
+      stage. Nothing here says whether a caller swap would perturb the <em>association</em> map
+      more or less than a reference swap does, because scoring the caller axis through the same
+      window and gene pipelines needs its own genotype derivation and association run. The
+      anchor a reader needs for the effect sizes on this page is therefore only half
+      present.</li>
   <li><strong>What colocalisation cannot see.</strong> A gene-trait pair is only testable
       where a GWAS already has an association inside the gene's window, so the loci examined
       are the ones GWAS has already resolved. If representation choice bites hardest where

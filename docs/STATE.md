@@ -19,8 +19,8 @@ Bayesian rather than a membership proxy.** What remains:
 - the page. It carries fifteen analyses across eighteen sections and about 14,000 words, and a
   **proposed reordering sits under Page status below, awaiting a decision.** That is a
   presentation change, not another result;
-- the variant-caller axis exists at the allele-frequency stage only;
-- the background-noise workstream's Hardy-Weinberg and allele-balance stages.
+- the variant-caller axis exists at the allele-frequency stage only, which is now stated on
+  the page as the residual rather than as a missing yardstick.
 
 **The open scientific question is now a specific one.** At the colocalisation endpoint the
 project's central prediction fails: psychiatric and neurodevelopmental colocalisations change
@@ -85,6 +85,8 @@ and is the single most informative thing left to do.
 | Genotype-term enrichment | **The disease-region enrichments belong to variant representation, not RNA quantification.** Recomputed on the genotype term alone (control vs crossed; expression, covariates and annotation identical): genomic disorder 2.91× → **4.02×** (p = 4e-24), segmental duplication 1.65× → **2.40×** (p = 3e-24), human accelerated 1.84× → 1.54× (p = 0.0072). The genotype term flags a smaller set (579 vs 1,256 genes) that is far more concentrated in hard sequence. Dosage re-signing independently validated against allele frequency (median |Δaf| = 0.0000 for re-signed variants; 0.39 had the sign been inverted). **Bounded:** different z-cuts per side, and the genotype term excludes reference-exclusive variants, so it is a lower bound. | `genotype_term_gene_classes_20260821` |
 
 | Matched gene classes | **The enrichments are not a counting artefact; they are alignment difficulty.** Holding cis-variant count, gene length, gene density and expression level fixed changes nothing -- every estimate holds or strengthens (segdup 2.40x -> 2.94x). Adding mappability attenuates all three: segdup survives on both axes (2.06x / 1.39x), genomic disorder becomes marginal, and **human accelerated regions go null on the genotype term** (1.15x, p = 0.41). For segdup and genomic disorder mappability is the mechanism, not a confounder, so those attenuations are not refutations. | `matched_gene_class_enrichment_20260821` |
+
+| Page truth pass | **Four claims the page made that the run tree does not support are corrected.** The self-contradiction on the yardstick (missing / already measured) and the stale lead-variant LD caveat are replaced by the measured results. The chrX ploidy control now carries its 1.47x and 1.49x between-arm spreads. And the two enrichment terms that survive correction — X-linked recessive inheritance (p = 3e-06) and X-linked inheritance (p = 3e-06), both in graph - linear T2T — are reported rather than omitted; they corroborate the chrX result from an instrument sharing no statistic with it. | `gene_discordance_disease_20260816`, `chrx_discordance_by_sex_20260816`, `lead_switch_ld_20260816` |
 
 ## Known risks
 
