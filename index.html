@@ -1061,10 +1061,33 @@ that sequence is to align. It can say something narrower and better supported: t
 genes happen to live. That is the mechanism this design proposed rather than a rival to it — but
 the two sentences behave differently, and the difference is not rhetorical. An enrichment
 independent of alignment difficulty would survive better alignment. This one is what better
-alignment is for. One gap remains: mappability is measured over the gene span while the
-statistic being explained runs over a 1 Mb cis window, so the adjustment is partial on exactly
-the covariate that matters most.</p>
+alignment is for.</p>
 </div>
+
+<p>One thing about that adjustment deserved checking, because it could have undone the rest.
+Mappability was measured over each gene's own span, while the statistic it explains is a mean
+over that gene's cis variants — which sit anywhere within a megabase of the start site. Since
+mappability carries most of the attenuation, measuring it in the wrong place would matter.
+Recomputing it three ways settles it.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Class</th><th>Mappability at the gene span</th><th>at the nominal cis window</th><th>at the variants themselves</th></tr></thead><tbody><tr><td>Recurrent genomic-disorder region</td><td>1.37×<br><span class="sub">p = 3.9 × 10<sup>−2</sup></span></td><td>1.70×<br><span class="sub">p = 9.8 × 10<sup>−5</sup></span></td><td>1.27×<br><span class="sub">p = 1.2 × 10<sup>−1</sup></span></td></tr><tr><td>Segmental duplication</td><td>2.06×<br><span class="sub">p = 6.5 × 10<sup>−14</sup></span></td><td>2.50×<br><span class="sub">p = 1.4 × 10<sup>−23</sup></span></td><td>2.08×<br><span class="sub">p = 2.3 × 10<sup>−14</sup></span></td></tr><tr><td>Human accelerated region</td><td>1.15×<br><span class="sub">p = 4.1 × 10<sup>−1</sup></span></td><td>1.38×<br><span class="sub">p = 4.2 × 10<sup>−2</sup></span></td><td>1.29×<br><span class="sub">p = 1.3 × 10<sup>−1</sup></span></td></tr></tbody></table></div><p class="tnote">Genotype term, with statistical power and mappability both held fixed, under three ways of measuring the same covariate. Correlation against the variant-level definition is 0.76 for the gene span and 0.44 for the nominal window; the span of the anchored variants reaches 0.93. Transcription start sites are recovered from the nominal output as variant position minus start_distance, so no strand assumption enters.</p>
+
+<p><strong>It does not matter.</strong> Measuring mappability at the anchored variants
+themselves — the faithful definition, since the statistic is a mean over exactly those variants
+— reproduces the gene-span answers: segmental duplication
+2.06×
+against
+2.08×,
+and both of the other classes at or near one either way. Segmental duplication survives all
+three definitions.</p>
+
+<p>The nominal cis window is the outlier, and the reason is worth stating because it runs the
+right way. It correlates only 0.44 with where the
+evidence actually sits — a 2 Mb interval always contains some unmappable sequence, so it
+measures broad regional difficulty rather than the difficulty of the loci that produced the
+statistic. Adjusting for a covariate measured with error under-adjusts, which leaves the
+estimate nearer its unadjusted value; and that is precisely what the middle column does, in
+every row. The correlations predict the pattern the odds ratios show.</p>
 
 <div class="callout">
 <p><strong>Difficulty and biological interest are not two facts here. They are one.</strong>
@@ -1833,11 +1856,13 @@ which is a different experiment from this one.</p>
       signals — which the fine-mapping shows are common enough to matter. A SuSiE-based
       colocalisation would relax it at the cost of needing a linkage reference matched to
       every study, and that trade has not been made here.</li>
-  <li><strong>Mappability at the window rather than the gene.</strong> The matched
-      analysis adjusts for mappability measured across each gene's span, while the statistic it
-      explains is computed over a 1 Mb cis window. That is the covariate carrying most of the
-      enrichment, so the partial adjustment is the weakest joint in the argument. Recomputing
-      it window-wise is tractable against the existing run tree and has not been done.</li>
+  <li><strong>The reference axis has no variant-level mappability check.</strong> Measuring
+      mappability at the anchored variants rather than over the gene span reproduces the
+      matched result on the genotype term, which is what retires that concern — but the same
+      check cannot be run on the reference axis, because its run retained only the gene table
+      and not the anchored variant set. Reproducing it means redoing the common-frame identity
+      join over the full four-arm nominal scan. The reference-axis numbers are therefore
+      supported by the agreement measured on the other axis rather than by a direct test.</li>
   <li><strong>Whether the human-accelerated null is real or a power failure.</strong> On the
       genotype term the enrichment vanishes once mappability is held fixed, on
       875 genes of which only

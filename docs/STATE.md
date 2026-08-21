@@ -88,6 +88,8 @@ and is the single most informative thing left to do.
 
 | Page truth pass | **Four claims the page made that the run tree does not support are corrected.** The self-contradiction on the yardstick (missing / already measured) and the stale lead-variant LD caveat are replaced by the measured results. The chrX ploidy control now carries its 1.47x and 1.49x between-arm spreads. And the two enrichment terms that survive correction — X-linked recessive inheritance (p = 3e-06) and X-linked inheritance (p = 3e-06), both in graph - linear T2T — are reported rather than omitted; they corroborate the chrX result from an instrument sharing no statistic with it. | `gene_discordance_disease_20260816`, `chrx_discordance_by_sex_20260816`, `lead_switch_ld_20260816` |
 
+| Mappability definition | **The weakest joint in the matched result turns out not to matter.** Mappability recomputed at the gene span, over the nominal cis window, and at the anchored variants themselves. Gene span and variant level agree (r = 0.76) and give the same adjusted odds ratios: segdup 2.06x vs 2.08x, genomic disorder 1.37x vs 1.27x. **The nominal cis window is the poor proxy** (r = 0.44) and under-adjusts, leaving every estimate nearer its crude value -- which is what measurement error in an adjustment covariate predicts. | `window_mappability_20260821` |
+
 ## Known risks
 
 - **chrX must be reported as XX-specific.** The whole-cohort 22.3% figure is a
@@ -95,8 +97,11 @@ and is the single most informative thing left to do.
   than of chrX-in-XX would be wrong.
 - **Enrichments are now controlled** for expression level, cis-variant count, gene
   length, gene density and mappability -- see `matched_gene_class_enrichment_20260821`.
-  The remaining gap is that mappability is measured over the gene span while the
-  discordance statistic runs over a 1 Mb cis window.
+  That gap -- mappability over the gene span against a statistic computed over the cis
+  window -- was tested in `window_mappability_20260821` and does not matter: measuring
+  mappability at the anchored variants themselves reproduces the gene-span answers. The
+  reference axis is supported by that agreement rather than by a direct check, because its
+  run retained no variant-level output.
 - **Superseded note.** Duplicated-region genes are often
   lowly expressed; some of the *Characterise discordant regions and gene classes* enrichment could be a power artifact. Open sub-task on *Characterise discordant regions and gene classes*,
   resolved by *Describe background-noise properties per arm*.

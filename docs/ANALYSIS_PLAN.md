@@ -1149,6 +1149,75 @@ window, so the adjustment is partial on the one covariate that matters most.
 
 ---
 
+**Does the matched result survive measuring mappability where the statistic is?**
+`[COMPLETE]`
+Run root `runs/window_mappability_20260821`.
+
+The matched enrichment adjusted for mappability across each gene's *span*, while the statistic
+it explains is a mean over that gene's cis variants, which sit anywhere within a megabase of
+the transcription start site. Mappability carries most of the attenuation, so measuring it in
+the wrong place was the weakest joint in that result. Three definitions were computed and the
+whole analysis re-run under each.
+
+| Definition | What it measures | Exactly 1.0 | r against the variant-level definition |
+|---|---|---|---|
+| gene span | the gene's own footprint; what the matched analysis used | 65% | 0.761 |
+| TSS +/- 1 Mb | the nominal cis window, positionally | 0% | 0.439 |
+| anchored footprint | lowest to highest anchored variant | 45% | 0.930 |
+| at the variants | share of the gene's anchored cis variants in mappable sequence | 65% | 1 |
+
+Transcription start sites were recovered from the nominal output as variant position minus
+`start_distance`, which is the coordinate tensorqtl actually used and needs no strand
+assumption.
+
+**The nominal cis window is a poor stand-in for where the evidence is**
+(r = 0.44), and this was the definition the plan had intended to use
+for the reference axis. A 2 Mb window always contains some unmappable sequence, so it is smooth
+and well-behaved and measures broad regional mappability rather than the mappability of the
+loci that produced the statistic. The gene span does much better
+(r = 0.76) and the anchored footprint better still
+(r = 0.93).
+
+*Adjusted odds ratios, power and mappability both held fixed, genotype term:*
+
+| Class | Unmatched | Mappability at the gene span | at the TSS +/- 1 Mb | at the variants |
+|---|---|---|---|---|
+| recurrent genomic-disorder region | 4.02x | 1.37x (p = 0.04) | 1.70x (p = 0.0001) | 1.27x (p = 0.1) |
+| segmental duplication | 2.40x | 2.06x (p = 7e-14) | 2.50x (p = 1e-23) | 2.08x (p = 2e-14) |
+| human accelerated region | 1.54x | 1.15x (p = 0.4) | 1.38x (p = 0.04) | 1.29x (p = 0.1) |
+
+**The published matched result is confirmed by the faithful definition.** Gene-span and
+variant-level mappability give the same answers to within noise: segmental duplication
+2.06x against
+2.08x, genomic disorder
+1.37x against
+1.27x, human accelerated
+1.15x against
+1.29x. Segmental duplication
+survives under all three definitions; the other two sit at or near one under both faithful
+ones. **The caveat is therefore downgraded rather than merely closed**: the mismatch existed but
+did not matter.
+
+*Why the window column is the outlier, and why that is reassuring.* Adjusting for a covariate
+measured with error under-adjusts, so a noisy proxy for the confounder leaves an estimate
+closer to the crude one. That is the ordering observed: in every row the window column is the
+adjustment nearest the crude value and the two faithful definitions sit further from it. It is
+not strictly bracketed -- segmental duplication comes out at 2.50x against a crude 2.40x, a
+slight overshoot -- but the ranking holds in all three, and the window definition is the one
+with r = 0.44. The pattern the correlations predict is the pattern the
+odds ratios show.
+
+*Bounds.* The reference axis has no variant-level definition: its run retained only the gene
+table, not the anchored variant set, so a variant-level check there would mean reproducing the
+common-frame identity join over the full four-arm nominal scan. Its gene-span result is
+reported as-is, supported by the genotype-term agreement rather than by a direct check. Both
+faithful definitions are also conditioned on variant existence -- variants are called where
+reads align, which is why 65% of genes sit at exactly 1.0
+on the variant-level scale. And every caveat from the matched analysis still applies:
+mappability is a mediator for segmental duplication and partly so for recurrent-CNV regions.
+
+---
+
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
 

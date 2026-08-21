@@ -599,6 +599,33 @@ t_enrichment_terms = table(
          f'service, which is why the other three contrasts return nothing rather than a long '
          f'weak list.')
 
+MD = XD["mappability_definitions"]
+MDR = MD["results"]
+MDA = MD["agreement"]
+
+
+def _mdef(defn, cls):
+    e = MDR.get(defn, {}).get("genotype_term", {}).get(cls)
+    if not e:
+        return "—"
+    t = e["tiers"]["power_and_alignment"]["regression"]
+    return f'{t["odds_ratio"]:.2f}×<br><span class="sub">p = {sci(t["p"])}</span>'
+
+
+t_mappability_defs = table(
+    ["Class", "Mappability at the gene span", "at the nominal cis window",
+     "at the variants themselves"],
+    [[CLASS_LABEL[c], _mdef("mappability_gene", c), _mdef("mappability_window", c),
+      _mdef("mappability_variants", c)] for c in CLASS_ORDER],
+    cls="numeric",
+    note=f'Genotype term, with statistical power and mappability both held fixed, under three '
+         f'ways of measuring the same covariate. Correlation against the variant-level '
+         f'definition is {MDA["pearson_r"]["gene_vs_variants"]:.2f} for the gene span and '
+         f'{MDA["pearson_r"]["window_vs_variants"]:.2f} for the nominal window; the span of the '
+         f'anchored variants reaches {MDA["pearson_r"]["footprint_vs_variants"]:.2f}. '
+         f'Transcription start sites are recovered from the nominal output as variant position '
+         f'minus start_distance, so no strand assumption enters.')
+
 MC = XD["matched_classes"]
 MCR = MC["results"]
 
@@ -1843,10 +1870,33 @@ that sequence is to align. It can say something narrower and better supported: t
 genes happen to live. That is the mechanism this design proposed rather than a rival to it — but
 the two sentences behave differently, and the difference is not rhetorical. An enrichment
 independent of alignment difficulty would survive better alignment. This one is what better
-alignment is for. One gap remains: mappability is measured over the gene span while the
-statistic being explained runs over a 1 Mb cis window, so the adjustment is partial on exactly
-the covariate that matters most.</p>
+alignment is for.</p>
 </div>
+
+<p>One thing about that adjustment deserved checking, because it could have undone the rest.
+Mappability was measured over each gene's own span, while the statistic it explains is a mean
+over that gene's cis variants — which sit anywhere within a megabase of the start site. Since
+mappability carries most of the attenuation, measuring it in the wrong place would matter.
+Recomputing it three ways settles it.</p>
+
+{t_mappability_defs}
+
+<p><strong>It does not matter.</strong> Measuring mappability at the anchored variants
+themselves — the faithful definition, since the statistic is a mean over exactly those variants
+— reproduces the gene-span answers: segmental duplication
+{MDR["mappability_gene"]["genotype_term"]["segmental_duplication"]["tiers"]["power_and_alignment"]["regression"]["odds_ratio"]:.2f}×
+against
+{MDR["mappability_variants"]["genotype_term"]["segmental_duplication"]["tiers"]["power_and_alignment"]["regression"]["odds_ratio"]:.2f}×,
+and both of the other classes at or near one either way. Segmental duplication survives all
+three definitions.</p>
+
+<p>The nominal cis window is the outlier, and the reason is worth stating because it runs the
+right way. It correlates only {MDA["pearson_r"]["window_vs_variants"]:.2f} with where the
+evidence actually sits — a 2 Mb interval always contains some unmappable sequence, so it
+measures broad regional difficulty rather than the difficulty of the loci that produced the
+statistic. Adjusting for a covariate measured with error under-adjusts, which leaves the
+estimate nearer its unadjusted value; and that is precisely what the middle column does, in
+every row. The correlations predict the pattern the odds ratios show.</p>
 
 <div class="callout">
 <p><strong>Difficulty and biological interest are not two facts here. They are one.</strong>
@@ -2573,11 +2623,13 @@ which is a different experiment from this one.</p>
       signals — which the fine-mapping shows are common enough to matter. A SuSiE-based
       colocalisation would relax it at the cost of needing a linkage reference matched to
       every study, and that trade has not been made here.</li>
-  <li><strong>Mappability at the window rather than the gene.</strong> The matched
-      analysis adjusts for mappability measured across each gene's span, while the statistic it
-      explains is computed over a 1 Mb cis window. That is the covariate carrying most of the
-      enrichment, so the partial adjustment is the weakest joint in the argument. Recomputing
-      it window-wise is tractable against the existing run tree and has not been done.</li>
+  <li><strong>The reference axis has no variant-level mappability check.</strong> Measuring
+      mappability at the anchored variants rather than over the gene span reproduces the
+      matched result on the genotype term, which is what retires that concern — but the same
+      check cannot be run on the reference axis, because its run retained only the gene table
+      and not the anchored variant set. Reproducing it means redoing the common-frame identity
+      join over the full four-arm nominal scan. The reference-axis numbers are therefore
+      supported by the agreement measured on the other axis rather than by a direct test.</li>
   <li><strong>Whether the human-accelerated null is real or a power failure.</strong> On the
       genotype term the enrichment vanishes once mappability is held fixed, on
       {MCR["genotype_term"]["human_accelerated"]["in_class"]:,} genes of which only
