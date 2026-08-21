@@ -958,6 +958,197 @@ not belong to RNA quantification and must be described that way.
 
 ---
 
+**Which mechanism carries the disease-region enrichment?** `[COMPLETE]`
+Run roots `runs/crossed_reference_nominal_20260821` and
+`runs/genotype_term_gene_classes_20260821`.
+
+The crossed association showed the reference contrast is mostly RNA re-quantification by
+volume. That raised an obvious worry about the project's strongest disease claim: the
+gene-class enrichments are computed on genes flagged by the *reference contrast*, so they might
+be a property of where RNA quantification disagrees rather than of where variant representation
+does. This tests it by recomputing them on the genotype term alone — control (T2T genotypes)
+against crossed (GRCh38 genotypes), with expression, covariates and annotation held identical.
+
+Nominal cis surfaces were run for both cells (3.3 min each on GPU) so the published gene-level
+discordance statistic could be reproduced exactly, then genes were flagged by the same recipe
+and passed through the same class-assignment functions rather than a reimplementation.
+
+| Class | Published reference axis | **Genotype term** | genes in class | flagged in vs out |
+|---|---|---|---|---|
+| genomic disorder | 2.91 (p = 1e-23) | **4.02** (p = 4e-24) | 717 | 12.8% vs 3.5% |
+| human accelerated | 1.84 (p = 1e-08) | **1.54** (p = 0.007) | 875 | 5.8% vs 3.9% |
+| segmental duplication | 1.65 (p = 2e-16) | **2.40** (p = 3e-24) | 4,413 | 6.6% vs 2.9% |
+
+**The enrichments are not an artefact of RNA re-quantification. Two of the three are stronger
+on the genotype term.** Isolating variant representation raises genomic disorder from
+2.91x to 4.02x and segmental
+duplication from 1.65x to 2.40x;
+human accelerated regions weaken from 1.84x to
+1.54x but hold.
+
+*Why the two results fit together.* The genotype term flags a **smaller** set —
+579 genes (4.0% of
+14,507) against the published 1,256
+(8.8%) — but a **more concentrated** one:
+12.8% of genomic-disorder genes are flagged against 3.5%
+elsewhere, a ratio the reference contrast does not reach. Variant representation differs
+specifically in duplicated and divergent sequence, which is where recurrent-CNV regions sit.
+RNA quantification differs more broadly and less selectively. **The reference effect is mostly
+RNA by volume and genotype by mechanism** — separable claims with different remedies:
+annotation and RNA alignment for the first, genotyping reference for the second.
+
+*Bounds.* The two flagged sets differ in size and use different z-cuts (genotype term
+z > 2.88), so "discordant" does not mean the same thing on both sides and the
+odds ratios are not strictly commensurable. The genotype term is measured only on variants both
+references can represent, so it excludes the access effect and is a **lower bound**. Neither
+flagged set is a controlled discovery set — the normal-tail false-discovery estimate is
+uncalibrated in both, as this project has already shown. Enrichment is unmatched on
+mappability, gene density and expression level, so it shows disease genes are present in these
+regions rather than why.
+
+---
+
+**Validating the dosage re-signing.** `[COMPLETE]`
+Recorded in `runs/crossed_reference_nominal_20260821/FLIP_VALIDATION.json`.
+
+The gate for the crossed association compared the control cell against the published T2T arm,
+which exercises the relabelling code only where it does nothing — T2T variants have zero flips.
+It said nothing about the 2,661,896 GRCh38 dosages recoded as 2 − d, and a sign error there
+would manufacture a genotype effect indistinguishable from a real one.
+
+Allele frequency settles it. Both cells report the frequency of the common-frame *alternate*
+allele, so re-signed and untouched variants must agree equally well; an inverted sign would
+show re-signed variants matching 1 − af instead. On chr22:
+
+| Variants | r(af control, af crossed) | median abs diff | had the sign been inverted |
+|---|---|---|---|
+| re-signed (34,284) | 0.9351 | **0.0000** | r = -0.9351, median 0.3911 |
+| untouched (79,272) | 0.9990 | **0.0000** | r = -0.9990, median 0.6933 |
+
+The re-signing is correct. One observation left open: re-signed variants correlate at
+0.9351 against 0.9990 for untouched ones,
+despite identical median absolute agreement. The benign reading is a restricted-range effect,
+since flipped variants have a different frequency distribution — visible in the inverted-sign
+column, where their median distance to 1 − af is 0.39
+against 0.69. The substantive reading is that
+sites where the two references disagree about which allele is *reference* are also sites where
+genotyping disagrees more — the project's thesis in miniature. Not resolved here.
+
+---
+
+**Retraction (internal).** An earlier note in this session claimed the gene-class analysis
+intersected hg38 ClinGen intervals against T2T gene positions without lifting, and called it a
+critical flaw in the project's strongest disease claim. **That was wrong.**
+`analyze_discordant_gene_classes_20260816.py` loads both annotations and matches each track to
+its own frame: GRCh38 gene positions against the hg38 ClinGen track, CHM13 positions against
+the CHM13 HAR and segdup tracks. No liftover is needed because nothing crosses frames. The
+error came from reading the manifest's track paths and grepping for "lift" rather than reading
+how the tracks were used. The mismatch existed only in a first draft of the genotype-term
+script, which parsed the T2T annotation alone; that draft was replaced with one that delegates
+class assignment to the original functions.
+
+---
+
+**Is the enrichment about the class, or about everything that travels with it?**
+`[COMPLETE]`
+Run root `runs/matched_gene_class_enrichment_20260821`.
+
+The enrichments compare flagged genes against every gene tested, matched on nothing. Genes in
+these classes carry more cis variants, are longer, sit in denser neighbourhoods, are expressed
+differently and are harder to align -- any of which could produce the enrichment with no
+contribution from the class itself. This holds them fixed, in two tiers, with three estimators
+that fail differently: a logistic regression of flagged on class plus covariates and their
+squares; a propensity for class membership cut into 20 strata and
+pooled by Mantel-Haenszel; and a 1:1 nearest-neighbour match with a
+0.2 SD caliper, tested
+by McNemar. Balance is reported as standardised mean differences against a 0.10 target.
+
+*Tier one -- statistical power.* Cis-variant count, gene length, gene density and expression
+level. These change how many chances a gene has to look discordant and how precisely each is
+measured. Nothing about them is biological.
+
+| Axis | Class | Crude | Regression | Stratified | Matched (95% CI) |
+|---|---|---|---|---|---|
+| genotype term | recurrent genomic-disorder region | 4.02 | 3.57 | 3.50 | 5.87 (3.39-10.14) |
+| genotype term | segmental duplication | 2.40 | 2.94 | 2.78 | 2.68 (2.14-3.37) |
+| genotype term | human accelerated region | 1.54 | 1.61 | 1.61 | 1.39 (0.90-2.13) |
+| reference axis | recurrent genomic-disorder region | 2.91 | 2.83 | 2.81 | 2.77 (1.98-3.86) |
+| reference axis | segmental duplication | 1.65 | 1.80 | 1.78 | 1.74 (1.49-2.03) |
+| reference axis | human accelerated region | 1.84 | 1.96 | 1.90 | 1.64 (1.22-2.21) |
+
+**None of the enrichment is a counting artefact.** Segmental duplication and human
+accelerated regions come out *stronger* than crude on both axes, meaning the power covariates
+were masking them rather than manufacturing them. Only genomic disorder attenuates, and barely
+-- 4.02x to 3.57x on the genotype term and 2.91x to 2.83x on the reference axis, both still far
+from one. Balance is good throughout: the worst standardised mean
+difference on this tier is
+0.028.
+
+*Tier two -- adding mappability.* This is **not** a stricter version of tier one, and the
+manifest records why per class. A segmental duplication is by definition sequence that recurs
+elsewhere, which is what makes it unmappable; conditioning on mappability there removes the
+mechanism rather than a confounder. Recurrent-CNV regions are bounded by segdups, so the same
+applies in weaker form. Only for human accelerated regions -- defined by substitution rate
+rather than copy structure -- is mappability cleanly a confounder.
+
+| Axis | Class | Crude | Regression | Stratified | Matched (95% CI) |
+|---|---|---|---|---|---|
+| genotype term | recurrent genomic-disorder region | 4.02 | 1.37 | 1.81 (unbalanced) | 1.17 (0.81-1.68) |
+| genotype term | segmental duplication | 2.40 | 2.06 | 1.91 | 1.87 (1.51-2.32) |
+| genotype term | human accelerated region | 1.54 | 1.15 | 1.10 | 0.92 (0.62-1.37) |
+| reference axis | recurrent genomic-disorder region | 2.91 | 1.31 | 1.70 (unbalanced) | 1.32 (0.96-1.80) |
+| reference axis | segmental duplication | 1.65 | 1.39 | 1.37 | 1.39 (1.19-1.62) |
+| reference axis | human accelerated region | 1.84 | 1.61 | 1.47 | 1.54 (1.15-2.07) |
+
+Three things follow.
+
+1. **Segmental duplication survives conditioning on its own mechanism**, on both axes and all
+   three estimators, with balance at or under 0.03. Genotype term
+   2.06x,
+   reference axis
+   1.39x.
+   The segdup annotation carries information that 100-mer uniqueness over the gene span does
+   not -- unsurprising, since the discordance statistic is computed over a 1 Mb window while
+   mappability here is measured over the gene body.
+
+2. **The human-accelerated enrichment on the genotype term is entirely mappability.** It falls
+   from 1.54x to
+   1.15x
+   (p = 0.41), and
+   the matched estimator puts it at
+   0.92. This
+   is the tier where mappability is a genuine confounder for this class, so **this one is a
+   negative result and is reported as such.** The reference axis behaves differently and holds
+   (1.61x,
+   p = 2.2e-05).
+
+3. **The genomic-disorder enrichment is mostly carried by mappability.** It falls to
+   1.37x on
+   the genotype term and
+   1.31x on
+   the reference axis, with matched intervals that include one. Since mappability is partly
+   downstream of the class here, that is not evidence the enrichment was spurious -- but the
+   page can no longer claim it is independent of alignment difficulty. On this cell the
+   stratified estimator should be ignored: its mappability balance is
+   0.207, a
+   common-support failure, because genomic-disorder genes are systematically unmappable and
+   there are too few comparable controls. The matched estimator solves that by discarding the
+   8 cases
+   it cannot match rather than extrapolating, and balances to
+   0.040.
+
+*What this does and does not settle.* It removes the "these genes just had more chances"
+explanation entirely, which was the live one. It replaces the claim that flagged genes are
+enriched for disease sequence *independently* of alignment difficulty with the narrower and
+better-supported claim that the enrichment **is** alignment difficulty, concentrated in the
+duplicated sequence where disease genes sit. That is the mechanism the design proposed, so it
+is not a retreat -- but it is a different sentence from the one the page was making, and the
+distinction is not rhetorical: the first would survive better alignment, the second is what
+better alignment is for. Mappability is still measured over the gene span rather than the cis
+window, so the adjustment is partial on the one covariate that matters most.
+
+---
+
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
 

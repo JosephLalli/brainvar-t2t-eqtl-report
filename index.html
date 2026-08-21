@@ -113,9 +113,12 @@ changes when you swap the aligner, and where on the genome the two disagree.">
   biologically accurate results: BrainVar has no per-donor assemblies, so no analysis here has
   ground truth. Three specific cautions. The reference contrast is not a clean single-factor
   comparison, because expression is quantified per reference — it measures an end-to-end
-  pipeline effect. The discordance windows are a ranked outlier map, not FDR-controlled
-  discoveries. And the gene-class and disease enrichments computed on those windows are
-  exploratory associations, not matched tests. Details and the correction queue are in
+  pipeline effect — though the crossed cells have since separated the two terms, and the
+  disease-region enrichments survive on the genotype term alone. The discordance windows are a
+  ranked outlier map, not FDR-controlled discoveries. And the gene-class and disease
+  enrichments have since been matched on the properties that travel with these regions: they
+  are not counting artefacts, but most of what they measure is alignment difficulty rather than
+  anything independent of it. Details and the correction queue are in
   <code>docs/REVIEW_FINDINGS_20260819.md</code>.</p>
   </div>
 </header>
@@ -170,7 +173,9 @@ pangenome-graph. The four arms are labelled <code>linear · GRCh38</code>,
 throughout. Every arm carries its own genotypes, its own genotype principal components,
 its own expression covariates, and its own gene universe called natively against its own
 reference; nothing is lifted over between arms to make them comparable, because lifting
-over is exactly the operation whose necessity is under test.</p>
+over is exactly the operation whose necessity is under test. The two factors are crossed, so
+each can be read off separately, and an effect that appears under only one level of the other
+factor is identifiable as exactly that.</p>
 
 <p>Because all four arms run the same code with the same parameters, a difference between
 them is attributable to the reference and the aligner. That is the design's intent, and it
@@ -197,14 +202,33 @@ essentially the whole drop.</p>
 
 <p>Read every reference-axis result below with that in mind. It does not make them wrong, and
 the effect-size magnitudes reported later survive holding expression stable — but the question
-of <em>which genes</em> a reference swap moves is largely a question about RNA quantification,
-and the gene-class and disease enrichments are computed on exactly that. Those have not yet
-been recomputed on the genotype term alone. The aligner axis is unaffected throughout, because
-it holds the phenotype exactly fixed by construction.</p>
+of <em>which genes</em> a reference swap moves is largely a question about RNA quantification.
+The gene-class and disease enrichments are computed on exactly that set, so they were
+recomputed on the genotype term alone. <strong><a href="#classes">They survive it, and two of
+the three are stronger.</a></strong> The reference effect is mostly RNA
+<em>by volume</em> and genotype <em>by mechanism</em>: re-quantification moves many more genes,
+but the genes that move because of variant representation are the ones sitting in hard,
+disease-bearing sequence. The aligner axis is unaffected throughout, because it holds the
+phenotype exactly fixed by construction.</p>
 
-<p>The two
-factors are crossed, so each can be read off separately, and an effect that appears
-under only one level of the other factor is identifiable as exactly that.</p>
+<div class="callout">
+<p><strong>The re-signing was checked independently.</strong> The control cell validates the
+machinery only where it does nothing — T2T variants never flip. But
+30.1% of GRCh38 variants flip
+orientation entering the common frame, and every one of their dosages is recoded as
+2&nbsp;&minus;&nbsp;d. An inverted sign there would manufacture a
+genotype effect indistinguishable from a real one. Allele frequency settles it: both cells
+report the frequency of the same common-frame allele, so on chr22 the
+34,284 re-signed variants agree at a median absolute difference of
+0.0000, exactly as the 79,272
+untouched ones do. Had the sign been inverted, the re-signed set would instead sit
+0.39 away. One thing this leaves open: the
+re-signed variants correlate at 0.935 against
+0.999 for untouched ones despite identical median agreement. That
+is consistent with their narrower frequency range, and also with sites where the two references
+disagree about which allele is <em>reference</em> being sites where genotyping disagrees more.
+Not resolved here.</p>
+</div>
 
 <h2 id="pcs">How many expression PCs?</h2>
 
@@ -471,7 +495,7 @@ which is what happens when they are effectively looking at different genotypes o
 local linkage. The second is movement in <em>precision</em>: the same effect measured with more
 or less certainty, which is what missingness and genotype quality produce. The identity is
 algebraic, and it was checked numerically in every contrast to a maximum residual of
-3e-06.</p>
+3 × 10<sup>−6</sup>.</p>
 
 
 <figure>
@@ -904,13 +928,154 @@ Segmental duplication runs between
 1.6 and
 2.5 times.</p>
 
+<h3 id="genotype-term">Is this an artefact of RNA re-quantification? No.</h3>
+
+<p>The flagged set above is defined by the reference contrast, and
+<a href="#design">the crossed cells showed that contrast is mostly RNA re-quantification</a>.
+That raises the obvious worry that these enrichments describe where transcript quantification
+disagrees rather than where variant representation does — which would make the page's central
+disease claim a property of annotation rather than of sequence. Recomputing them on the
+genotype term alone settles it. Both cells share one expression matrix, one covariate set and
+one annotation; only the genotypes differ.</p>
+
+
+<figure>
+  <picture>
+    <source srcset="figures/genotype-term.dark.svg" media="(prefers-color-scheme: dark)">
+    <img src="figures/genotype-term.light.svg" alt="Arrow chart of three sequence classes, showing the odds ratio moving from the published reference contrast to the genotype term: genomic-disorder regions rise from 2.91 to 4.02 and segmental duplications from 1.65 to 2.40, while human accelerated regions fall from 1.84 to 1.54" loading="lazy">
+  </picture>
+  <figcaption>Each arrow runs from the published reference contrast to the same test on a genotype swap alone. Two of three strengthen, so the enrichment is not carried by RNA re-quantification.</figcaption>
+</figure>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Class</th><th>Reference axis, as published</th><th>Genotype term alone</th><th>Genes in class</th><th>Flagged inside vs outside</th></tr></thead><tbody><tr><td>Recurrent genomic-disorder region</td><td>2.91×<br><span class="sub">p = 1.3 × 10<sup>−23</sup></span></td><td><strong>4.02×</strong><br><span class="sub">p = 4.5 × 10<sup>−24</sup></span></td><td>717</td><td>12.8% vs 3.5%</td></tr><tr><td>Segmental duplication</td><td>1.65×<br><span class="sub">p = 2.4 × 10<sup>−16</sup></span></td><td><strong>2.40×</strong><br><span class="sub">p = 2.9 × 10<sup>−24</sup></span></td><td>4,413</td><td>6.6% vs 2.9%</td></tr><tr><td>Human accelerated region</td><td>1.84×<br><span class="sub">p = 1.2 × 10<sup>−8</sup></span></td><td><strong>1.54×</strong><br><span class="sub">p = 7.2 × 10<sup>−3</sup></span></td><td>875</td><td>5.8% vs 3.9%</td></tr></tbody></table></div><p class="tnote">The published column is the linear T2T-against-GRCh38 contrast, the one the genotype swap isolates. Both columns use the same recipe, the same class tracks and the same Fisher test against the genes tested in their own contrast. The published column flags 1,256 of 14,258 genes (8.8%); the genotype term flags 579 of 14,507 (4.0%) at z &gt; 2.88. The two flagged sets are different sizes, so the odds ratios are comparable in direction and in rough magnitude, not to the second decimal.</p>
+
+<p><strong>All three enrichments survive, and two are stronger.</strong> Isolating variant
+representation raises the genomic-disorder enrichment from
+2.91× to
+<strong>4.02×</strong> and segmental duplication from
+1.65× to
+<strong>2.40×</strong>. Human accelerated regions
+weaken from 1.84× to
+1.54× but hold
+(p = 7.2 × 10<sup>−3</sup>).</p>
+
+<p>The two results fit together once extent is separated from specificity. The genotype term
+flags a <strong>smaller</strong> set — 579 genes
+(4.0%) against 1,256
+(8.8%) — but a <strong>more concentrated</strong> one:
+12.8% of genomic-disorder genes are flagged against
+3.5% elsewhere, a ratio the reference contrast does not
+reach. Variant representation differs specifically in duplicated and divergent sequence, which
+is where recurrent-CNV regions sit; RNA quantification differs more broadly and less
+selectively. So the reference effect is mostly RNA by volume and genotype by mechanism — two
+separable claims with different remedies. The first is an argument for matched annotation and
+RNA alignment. The second is an argument about which reference you genotype against, and it is
+the one this page is about.</p>
+
+<div class="callout">
+<p><strong>What this comparison can and cannot carry.</strong> The two flagged sets are
+different sizes and use different cuts, so "discordant" does not mean quite the same thing on
+each side and the odds ratios are comparable in direction rather than to the second decimal.
+The genotype term is measured only on variants <em>both</em> references can represent, so it
+excludes the access effect entirely — and access is where the reference's distinctive
+contribution was shown to lie. It is therefore a <strong>lower bound</strong> on the genotype
+axis, not an estimate of it. Neither flagged set is a controlled discovery set: the
+false-discovery estimate assumes a normal tail this page has already shown to be too light.</p>
+</div>
+
+<h3 id="matched">Is it the class, or everything that travels with it?</h3>
+
+<p>Both tables so far compare flagged genes against every gene tested, matched on nothing. That
+is a weak comparison, because genes in these classes are not ordinary genes in any respect:
+they carry more cis variants, they are longer, they sit in denser neighbourhoods, they are
+expressed at different levels, and they are harder to align. Any of those could produce an
+enrichment with no contribution from the class itself. Running the test again with them held
+fixed separates the explanations.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Class</th><th>Axis</th><th>Unmatched</th><th>Power held fixed</th><th>Power and mappability held fixed</th></tr></thead><tbody><tr><td>Recurrent genomic-disorder region</td><td>genotype term</td><td>4.02×</td><td>3.57×<br><span class="sub">2.80&ndash;4.55</span></td><td>1.37×<br><span class="sub">1.02&ndash;1.85</span></td></tr><tr><td>Recurrent genomic-disorder region</td><td>reference axis</td><td>2.91×</td><td>2.83×<br><span class="sub">2.32&ndash;3.44</span></td><td>1.31×<br><span class="sub">1.03&ndash;1.67</span></td></tr><tr><td>Segmental duplication</td><td>genotype term</td><td>2.40×</td><td>2.94×<br><span class="sub">2.47&ndash;3.50</span></td><td>2.06×<br><span class="sub">1.70&ndash;2.49</span></td></tr><tr><td>Segmental duplication</td><td>reference axis</td><td>1.65×</td><td>1.80×<br><span class="sub">1.59&ndash;2.04</span></td><td>1.39×<br><span class="sub">1.21&ndash;1.58</span></td></tr><tr><td>Human accelerated region</td><td>genotype term</td><td>1.54×</td><td>1.61×<br><span class="sub">1.19&ndash;2.18</span></td><td>1.15×<br><span class="sub">0.83&ndash;1.60</span></td></tr><tr><td>Human accelerated region</td><td>reference axis</td><td>1.84×</td><td>1.96×<br><span class="sub">1.59&ndash;2.40</span></td><td>1.61×<br><span class="sub">1.29&ndash;2.01</span></td></tr></tbody></table></div><p class="tnote">Odds that a method-sensitive gene falls in the class, adjusted by a logistic model of the covariates and their squares. Two further estimators with different failure modes agree throughout: a propensity for class membership cut into twenty strata and pooled by Mantel-Haenszel, and a 1:1 nearest-neighbour match with a 0.2&nbsp;SD caliper tested by McNemar. Balance is checked as standardised mean differences against a 0.10 target; the worst residual on the power tier is 0.028. On the two genomic-disorder cells of the right-hand column the stratified estimator fails its balance check and is disregarded — those genes are systematically unmappable, so there are too few comparable controls; the matched estimator handles it by discarding the handful of cases it cannot match rather than extrapolating.</p>
+
+<p><strong>None of it is a counting artefact.</strong> Holding cis-variant count, gene length,
+gene density and expression level fixed leaves segmental duplication and human accelerated
+regions <em>stronger</em> than unmatched on both axes, which means those covariates had been
+masking them rather than manufacturing them. Only genomic disorder attenuates, and barely —
+4.02× to
+3.57× on
+the genotype term and
+2.91× to
+2.83×
+on the reference axis, both still far from one. This was the live alternative explanation and
+it is now closed: the disease enrichment is not a story about disease genes having more chances
+to look discordant.</p>
+
+<p><strong>Holding mappability fixed asks a different question, and it is the more interesting
+one.</strong> Mappability is not a nuisance variable here in the way the others are. A
+segmental duplication is <em>by definition</em> sequence that recurs elsewhere, which is
+precisely what makes it unmappable; recurrent-CNV regions are bounded by segdups. For those two
+classes, conditioning on mappability removes the mechanism rather than a confounder, so an
+attenuation is not a refutation. Only for human accelerated regions — defined by substitution
+rate rather than by copy structure — is mappability cleanly a confounder.</p>
+
+<ul>
+  <li><strong>Segmental duplication survives conditioning on its own mechanism</strong>, on
+      both axes and by all three estimators, with residual imbalance at or under 0.03:
+      2.06×
+      on the genotype term and
+      1.39×
+      on the reference axis. The annotation carries information that 100-mer uniqueness over
+      the gene body does not — unsurprising, since the discordance statistic runs over a 1 Mb
+      window while mappability here is measured over the gene span.</li>
+  <li><strong>The human-accelerated enrichment on the genotype term is entirely
+      mappability.</strong> It falls from
+      1.54× to
+      1.15×
+      (p = 0.41),
+      and the matched estimator puts it at
+      0.92.
+      This is the one cell where mappability is a genuine confounder for its class, so
+      <strong>this is a negative result</strong> and is reported as one. The reference axis
+      behaves differently and holds
+      (1.61×,
+      p&nbsp;=&nbsp;2.2 × 10<sup>−5</sup>).</li>
+  <li><strong>The genomic-disorder enrichment is mostly carried by mappability</strong>, falling
+      to
+      1.37×
+      and
+      1.31×.
+      The regression intervals shown above still exclude one, but the matched estimator — the
+      only one of the three that passes its balance check on these two cells — does not
+      (1.17,
+      0.81&ndash;1.68
+      and
+      1.32,
+      0.96&ndash;1.80),
+      so call this attenuated to somewhere around one rather than resolved. Since mappability is
+      partly downstream of this class, that is not evidence the enrichment was spurious — but it
+      does mean it cannot be claimed as independent of alignment difficulty.</li>
+</ul>
+
+<div class="callout">
+<p><strong>What the page can say after this, and what it cannot.</strong> It cannot say that
+method-sensitive genes are enriched for disease sequence <em>independently</em> of how hard
+that sequence is to align. It can say something narrower and better supported: the enrichment
+<strong>is</strong> alignment difficulty, concentrated in the duplicated sequence where disease
+genes happen to live. That is the mechanism this design proposed rather than a rival to it — but
+the two sentences behave differently, and the difference is not rhetorical. An enrichment
+independent of alignment difficulty would survive better alignment. This one is what better
+alignment is for. One gap remains: mappability is measured over the gene span while the
+statistic being explained runs over a 1 Mb cis window, so the adjustment is partial on exactly
+the covariate that matters most.</p>
+</div>
+
 <div class="callout">
 <p><strong>Difficulty and biological interest are not two facts here. They are one.</strong>
 These regions are hard to align because they vary so much between people that a single linear
 reference represents them badly, and between-person variation is the substance of disease
 genetics — so the same property that makes them hard to measure is what makes them worth
 measuring. That is why the enrichment above is not a warning about instability. It is the
-prediction the design was built to test, and it holds on all three axes at once.</p>
+prediction the design was built to test, and it holds on all three axes at once. The matched
+analysis below turns that from a claim into a measurement: adjusting for alignment difficulty
+removes most of the enrichment, which is what it should do if difficulty and disease are the
+same fact rather than two.</p>
 </div>
 
 <p>The consequence is uncomfortable but specific. Fields with the longest history of
@@ -1015,7 +1180,7 @@ whether a reference swap moved them closer or further away. This cohort is
 African and 43 of American projected ancestry, which is enough
 to compare.</p>
 
-<div class="tablewrap"><table class="numeric"><thead><tr><th>Ancestry group</th><th>Donors</th><th>Change in non-reference load on T2T</th><th>Change under an aligner swap</th></tr></thead><tbody><tr><td>EUR</td><td>104</td><td><strong>-0.047</strong></td><td>+0.0009</td></tr><tr><td>AMR</td><td>43</td><td><strong>-0.029</strong></td><td>+0.0011</td></tr><tr><td>AFR</td><td>62</td><td><strong>+0.017</strong></td><td>+0.0007</td></tr></tbody></table></div><p class="tnote">Median change in mean alternate-allele dosage per donor, a proxy for how far a donor sits from the reference. Kruskal-Wallis across groups: p = 1.3e-38 for the reference swap and 2.7e-07 for the aligner swap. Ancestry labels are projected superpopulation assignments, not self-reported, and groups outside these three are too small to test.</p>
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Ancestry group</th><th>Donors</th><th>Change in non-reference load on T2T</th><th>Change under an aligner swap</th></tr></thead><tbody><tr><td>EUR</td><td>104</td><td><strong>-0.047</strong></td><td>+0.0009</td></tr><tr><td>AMR</td><td>43</td><td><strong>-0.029</strong></td><td>+0.0011</td></tr><tr><td>AFR</td><td>62</td><td><strong>+0.017</strong></td><td>+0.0007</td></tr></tbody></table></div><p class="tnote">Median change in mean alternate-allele dosage per donor, a proxy for how far a donor sits from the reference. Kruskal-Wallis across groups: p = 1.3 × 10<sup>−38</sup> for the reference swap and 2.7 × 10<sup>−7</sup> for the aligner swap. Ancestry labels are projected superpopulation assignments, not self-reported, and groups outside these three are too small to test.</p>
 
 <p><strong>The direction reverses between groups.</strong> Moving to T2T reduces the
 non-reference load of European-ancestry donors by 0.047 and
@@ -1520,6 +1685,29 @@ which is a different experiment from this one.</p>
       2.9 to 9.1 times enriched for recurrent genomic-disorder regions,
       1.7 to 1.9 times for human accelerated regions, and consistently
       for segmental duplication — twelve of twelve tests positive.</li>
+  <li><strong>The enrichments are not a counting artefact.</strong> Held fixed on
+      cis-variant count, gene length, gene density and expression level, every one holds or
+      strengthens — segmental duplication rises from
+      2.40× to
+      2.94×.
+      Adding mappability attenuates all three: segdup survives on both axes, genomic disorder
+      becomes marginal, and human accelerated regions go null on the genotype term
+      (1.15×,
+      p&nbsp;=&nbsp;0.41).
+      For the first two classes mappability is the mechanism rather than a confounder, so those
+      attenuations are not refutations — but the enrichment can no longer be called independent
+      of alignment difficulty.</li>
+  <li><strong>Those enrichments belong to the genotype axis, not to RNA re-quantification.</strong>
+      Recomputed on a genotype swap alone, with expression, covariates and annotation held
+      identical, all three survive and two strengthen: genomic disorder
+      2.91× →
+      4.02×, segmental duplication
+      1.65× →
+      2.40×, human accelerated
+      1.84× →
+      1.54×. The genotype term flags a smaller set that
+      is more concentrated in hard sequence, and because it sees only variants both references
+      can represent it is a lower bound.</li>
   <li>Method changes move the <em>estimate</em>, not the <em>precision</em>. The standard
       error is essentially unchanged in every contrast, and at matched allele frequency no arm
       is measurably less noisy than any other — including in duplicated sequence, where a gain
@@ -1610,6 +1798,18 @@ which is a different experiment from this one.</p>
       signals — which the fine-mapping shows are common enough to matter. A SuSiE-based
       colocalisation would relax it at the cost of needing a linkage reference matched to
       every study, and that trade has not been made here.</li>
+  <li><strong>Mappability at the window rather than the gene.</strong> The matched
+      analysis adjusts for mappability measured across each gene's span, while the statistic it
+      explains is computed over a 1 Mb cis window. That is the covariate carrying most of the
+      enrichment, so the partial adjustment is the weakest joint in the argument. Recomputing
+      it window-wise is tractable against the existing run tree and has not been done.</li>
+  <li><strong>Whether the human-accelerated null is real or a power failure.</strong> On the
+      genotype term the enrichment vanishes once mappability is held fixed, on
+      875 genes of which only
+      51 are flagged. The
+      reference axis, with twice the flagged set, still shows the effect. Those are consistent
+      with a genuine axis difference and equally consistent with the genotype term being
+      underpowered for the smallest of the three classes.</li>
   <li><strong>Annotation versus sequence in the gene universes.</strong> A majority of
       reference-exclusive genes are absent from the other reference's annotation entirely, so
       annotation release explains much of the 1,175-gene turnover. Separating that from

@@ -6,7 +6,7 @@
 > confound was found that threatens the reference-axis flagged set and the gene-class
 > enrichments computed on it: **expression is quantified per reference, not per arm**, so a
 > reference swap changes the phenotype as well as the genotypes. The headline 9× magnitude
-> ratio survives, but the crossed association has since **measured** the confound directly: a reference swap turns over 21.7% of eGenes, of which swapping expression alone accounts for 20.1% and swapping genotypes alone only 6.6%. **The reference-axis gene-level results are largely an RNA-quantification effect.** Do not add new analyses before reading it.
+> ratio survives, but the crossed association has since **measured** the confound directly: a reference swap turns over 21.7% of eGenes, of which swapping expression alone accounts for 20.1% and swapping genotypes alone only 6.6%. **The reference effect is mostly RNA by volume but genotype by mechanism**: the turnover is largely re-quantification, but the disease-region enrichments computed on the flagged set *survive* when recomputed on the genotype term alone, and two of three are stronger (genomic disorder 2.91× → **4.02×**, segmental duplication 1.65× → **2.40×**). Do not add new analyses before reading it.
 
 **Updated:** 2026-08-20. Update this file at the end of every work session, in the same
 session as the work. A run root without a line here is invisible to the next contributor.
@@ -80,14 +80,22 @@ and is the single most informative thing left to do.
 
 | Background noise: HWE and allele balance | **Pangenomic alignment removes the duplicated-sequence penalty; the reference change does not.** On 1,654,230 matched variants, linear arms show elevated collapse signatures in duplicated sequence (excess het 0.283%/0.262%, skewed-het share 0.065/0.056) that the graph arms do not (0.087%/0.082%, 0.039/0.039 — at their ordinary-sequence level). Aligner swap moves excess het −0.195pp in duplicated sequence; reference swap −0.021pp, and its allele-balance effect is n.s. on the graph axis. **First result where an arm is cleaner** — and it separates precision (unchanged) from genotype fidelity (improved). | `background_noise_hwe_ab_20260817` |
 
-| Crossed association | **The reference contrast is dominated by RNA re-quantification.** Running the missing cells of the design (GRCh38 genotypes x T2T expression, and a T2T control through identical code) decomposes a 21.7% eGene turnover into 20.1% from expression alone and only 6.6% from genotypes alone. The control reproduces the published linear_t2t_dv arm exactly (0.9% turnover, r = 0.9999, 100% top-variant agreement), so the machinery is validated. Gene-class enrichments must be recomputed on the genotype term. | `crossed_reference_association_20260821` |
+| Crossed association | **The reference contrast is dominated by RNA re-quantification.** Running the missing cells of the design (GRCh38 genotypes x T2T expression, and a T2T control through identical code) decomposes a 21.7% eGene turnover into 20.1% from expression alone and only 6.6% from genotypes alone. The control reproduces the published linear_t2t_dv arm exactly (0.9% turnover, r = 0.9999, 100% top-variant agreement), so the machinery is validated. Gene-class enrichments were recomputed on the genotype term — next row. | `crossed_reference_association_20260821` |
+
+| Genotype-term enrichment | **The disease-region enrichments belong to variant representation, not RNA quantification.** Recomputed on the genotype term alone (control vs crossed; expression, covariates and annotation identical): genomic disorder 2.91× → **4.02×** (p = 4e-24), segmental duplication 1.65× → **2.40×** (p = 3e-24), human accelerated 1.84× → 1.54× (p = 0.0072). The genotype term flags a smaller set (579 vs 1,256 genes) that is far more concentrated in hard sequence. Dosage re-signing independently validated against allele frequency (median |Δaf| = 0.0000 for re-signed variants; 0.39 had the sign been inverted). **Bounded:** different z-cuts per side, and the genotype term excludes reference-exclusive variants, so it is a lower bound. | `genotype_term_gene_classes_20260821` |
+
+| Matched gene classes | **The enrichments are not a counting artefact; they are alignment difficulty.** Holding cis-variant count, gene length, gene density and expression level fixed changes nothing -- every estimate holds or strengthens (segdup 2.40x -> 2.94x). Adding mappability attenuates all three: segdup survives on both axes (2.06x / 1.39x), genomic disorder becomes marginal, and **human accelerated regions go null on the genotype term** (1.15x, p = 0.41). For segdup and genomic disorder mappability is the mechanism, not a confounder, so those attenuations are not refutations. | `matched_gene_class_enrichment_20260821` |
 
 ## Known risks
 
 - **chrX must be reported as XX-specific.** The whole-cohort 22.3% figure is a
   dilution of a 34.6% XX-specific effect; stating it as a property of chrX rather
   than of chrX-in-XX would be wrong.
-- **Enrichments not yet controlled for expression level.** Duplicated-region genes are often
+- **Enrichments are now controlled** for expression level, cis-variant count, gene
+  length, gene density and mappability -- see `matched_gene_class_enrichment_20260821`.
+  The remaining gap is that mappability is measured over the gene span while the
+  discordance statistic runs over a 1 Mb cis window.
+- **Superseded note.** Duplicated-region genes are often
   lowly expressed; some of the *Characterise discordant regions and gene classes* enrichment could be a power artifact. Open sub-task on *Characterise discordant regions and gene classes*,
   resolved by *Describe background-noise properties per arm*.
 - **All FDR estimates are lower bounds.** Normal-null tail assumption; LD correlates

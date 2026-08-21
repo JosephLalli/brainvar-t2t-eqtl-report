@@ -593,6 +593,56 @@ def fig_gene_classes(c, mode):
     finish(fig, list(axes), c, f"gene-classes.{mode}.svg")
 
 
+# ---------------------------------------------------------- genotype term
+def fig_genotype_term(c, mode):
+    """Where the disease enrichment lives once RNA re-quantification is held still.
+
+    Each class gets one arrow: tail at the published reference-axis odds ratio, head at
+    the same test recomputed on a genotype swap alone.  Two arrows point right, which is
+    the whole finding -- isolating variant representation makes the enrichment stronger,
+    not weaker, so the disease signal is not an artefact of transcript quantification.
+    """
+    gt = DATA["crossed"]["genotype_term_classes"]["classes"]
+    fig, ax = plt.subplots(figsize=(8.4, 3.9))
+    for i, (key, name) in enumerate(GENE_CLASSES):
+        a = gt[key]["reference_axis_odds_ratio"]
+        b = gt[key]["odds_ratio"]
+        colour = c["s1"] if b >= a else c["s4"]
+        ax.annotate("", xy=(b, i), xytext=(a, i),
+                    arrowprops=dict(arrowstyle="-|>,head_width=0.28,head_length=0.6",
+                                    color=colour, linewidth=2.0,
+                                    shrinkA=5.5, shrinkB=0), zorder=3)
+        ax.plot(a, i, "o", color=c["surface"], markersize=8,
+                markeredgecolor=colour, markeredgewidth=1.8, zorder=4)
+        ax.annotate(f"{a:.2f}×", xy=(a, i), xytext=(0, 11), textcoords="offset points",
+                    ha="center", va="bottom", color=c["muted"], fontsize=9)
+        ax.annotate(f"{b:.2f}×", xy=(b, i), xytext=(0, 11), textcoords="offset points",
+                    ha="center", va="bottom", color=c["ink"], fontsize=9.5,
+                    fontweight="600")
+    ax.axvline(1.0, color=c["axis"], linewidth=1.4, linestyle=(0, (4, 3)), zorder=1)
+    ax.set_yticks(range(len(GENE_CLASSES)), [n for _, n in GENE_CLASSES])
+    ax.invert_yaxis()
+    ax.set_xscale("log")
+    ax.set_xlim(0.9, 6.0)
+    ax.set_xticks([1, 1.5, 2, 3, 4, 5])
+    # A log axis ending at 6 draws its own minor decade tick there, which reads as
+    # a data point rather than a scale mark.
+    ax.minorticks_off()
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}×"))
+    ax.set_ylim(len(GENE_CLASSES) - 0.4, -0.75)
+    ax.xaxis.grid(True, color=c["grid"], linewidth=1.0)
+    ax.set_axisbelow(True)
+    frame(ax, c, ygrid=False)
+    ax.set_xlabel("odds that a method-sensitive gene lies in this sequence class",
+                  color=c["ink2"], fontsize=9.5)
+    title(ax, c, "The disease enrichment belongs to the genotypes, not the RNA",
+          sub="Hollow marker: the published reference contrast, which also re-quantifies "
+              "expression. Arrowhead: the same test on a genotype swap alone, with "
+              "expression, covariates and annotation held identical. Two of three "
+              "strengthen.")
+    finish(fig, ax, c, f"genotype-term.{mode}.svg")
+
+
 # ---------------------------------------------------------------- figure 15
 def fig_mechanism(c, mode):
     bc = DATA["mechanism"]["by_contrast"]
@@ -671,7 +721,8 @@ def fig_yardstick(c, mode):
 FIGURES = [fig_pc_sweep, fig_four_arm, fig_stratified, fig_direction_context,
            fig_interaction, fig_calibration, fig_direction, fig_contrast_pairs,
            fig_reference_vs_aligner, fig_hotspot_context,
-           fig_concordance, fig_chrx_by_sex, fig_gene_classes, fig_mechanism,
+           fig_concordance, fig_chrx_by_sex, fig_gene_classes, fig_genotype_term,
+           fig_mechanism,
            fig_yardstick]
 
 if __name__ == "__main__":

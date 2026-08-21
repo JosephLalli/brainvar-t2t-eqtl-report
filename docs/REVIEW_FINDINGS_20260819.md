@@ -51,6 +51,37 @@ colocalisation. Nor the allele-frequency or variant-identity work, which involve
 
 **The clean test has now been run** — `runs/crossed_reference_association_20260821`, recorded in ANALYSIS_PLAN.md. It confirms the confound and quantifies it: of a 21.7% eGene turnover under a reference swap, expression alone accounts for 20.1% and genotypes alone for 6.6%. The control cell reproduces the published arm at 0.9% turnover and r = 0.9999, validating the machinery.
 
+**The threatened enrichments have now been retested directly, and they hold.**
+`runs/genotype_term_gene_classes_20260821` recomputes the gene-class enrichments on the
+genotype term alone — one expression matrix, one covariate set, one annotation, only the
+genotypes swapped — using the same recipe, the same class tracks and the same Fisher test.
+All three survive and two strengthen:
+
+| Class | Reference axis, as published | Genotype term alone |
+|---|---|---|
+| recurrent genomic-disorder region | 2.91x | **4.02x** (p = 4e-24) |
+| segmental duplication | 1.65x | **2.40x** (p = 3e-24) |
+| human accelerated region | 1.84x | 1.54x (p = 0.0072) |
+
+The alternative explanation this finding raised — that multi-mapping RNA quantification fails
+hardest in duplicated sequence, which is where the enrichments live — is therefore **not** what
+carries them. The genotype term flags a smaller set (579 genes against
+1,256) that is markedly more concentrated in those regions
+(12.8% of genomic-disorder genes against 3.5% elsewhere).
+The reference effect is mostly RNA **by volume** and genotype **by mechanism**.
+
+Three limits stay attached to that. The two flagged sets differ in size and cut, so the odds
+ratios are comparable in direction rather than to the second decimal. The genotype term sees
+only variants both references can represent, so it excludes the access effect and is a **lower
+bound**. And neither side is matched on mappability, gene density or expression level, so what
+is shown is that disease genes are present in this sequence, not why. That last point is now
+carried on the page and listed under "not settled".
+
+The re-signing this required was validated independently:
+`runs/crossed_reference_nominal_20260821/FLIP_VALIDATION.json`. Re-signed and untouched
+variants agree on allele frequency to the same median absolute difference (0.0000); had the
+sign been inverted the re-signed set would sit 0.39 away.
+
 ### 2. The colocalisation "independent instrument" claim is false
 
 The page says the stratified colocalisation reproduces the regional claim "on an instrument
@@ -125,6 +156,14 @@ Worth checking before relying on any of them, but each is specific enough to act
   and gene density and "this test does not match on those" — but
   `discordant_gene_classes_20260816`, which backs the page's central claim, carries no such
   caveat. Same confound, applied only to the test that produced an unwelcome answer.
+  *Partly addressed:* `genotype_term_gene_classes_20260821` carries the caveat explicitly,
+  and the page now states it in the classes section and under "not settled". The original
+  `discordant_gene_classes_20260816` manifest is unchanged, and no matched test has been
+  run on either axis.
+  *Now closed:* `matched_gene_class_enrichment_20260821` runs the matched test on both
+  axes, matching on mappability, gene density, expression level, cis-variant count and
+  gene length. The power covariates explain none of the enrichment; mappability explains
+  most of it, and all of the human-accelerated enrichment on the genotype term.
 - **eGene counts disagree** between the PC-sweep and maps tables at the same k; the "12,189"
   headline is a sum over four overlapping arms, not a distinct-gene count.
 - **Several quoted ranges do not match their tables** (2.2× vs 2.0–3.0; 56–69% vs 56.0–70.8%).
