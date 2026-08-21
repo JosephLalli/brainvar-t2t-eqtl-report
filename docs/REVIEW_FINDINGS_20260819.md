@@ -49,14 +49,7 @@ against 5.9% of concordant genes.
 fixed — the genotype-fidelity result, the chrX XX-specific finding, the aligner-axis
 colocalisation. Nor the allele-frequency or variant-identity work, which involve no expression.
 
-**The clean test, not yet run:** a crossed association — one reference's genotypes against the
-other reference's expression and covariates. Both matrices are on disk. Conditioning on
-expression concordance, as above, is a *selection* rather than an experiment: expression-stable
-genes may differ in ways that also reduce genotype-driven discordance, so the table bounds the
-phenotype contribution rather than estimating it. Note the coordinate problem: GRCh38 genotypes
-must be relabelled into the common T2T frame (the identity tables provide this, and dosages
-must be recoded where `native_to_common_orientation_sign` is −1) before they can meet
-T2T-coordinate phenotypes.
+**The clean test has now been run** — `runs/crossed_reference_association_20260821`, recorded in ANALYSIS_PLAN.md. It confirms the confound and quantifies it: of a 21.7% eGene turnover under a reference swap, expression alone accounts for 20.1% and genotypes alone for 6.6%. The control cell reproduces the published arm at 0.9% turnover and r = 0.9999, validating the machinery.
 
 ### 2. The colocalisation "independent instrument" claim is false
 

@@ -6,7 +6,7 @@
 > confound was found that threatens the reference-axis flagged set and the gene-class
 > enrichments computed on it: **expression is quantified per reference, not per arm**, so a
 > reference swap changes the phenotype as well as the genotypes. The headline 9× magnitude
-> ratio survives; the flagged-set identity may not. Do not add new analyses before reading it.
+> ratio survives, but the crossed association has since **measured** the confound directly: a reference swap turns over 21.7% of eGenes, of which swapping expression alone accounts for 20.1% and swapping genotypes alone only 6.6%. **The reference-axis gene-level results are largely an RNA-quantification effect.** Do not add new analyses before reading it.
 
 **Updated:** 2026-08-20. Update this file at the end of every work session, in the same
 session as the work. A run root without a line here is invisible to the next contributor.
@@ -79,6 +79,8 @@ and is the single most informative thing left to do.
 | Selection-effect tests | **The regional claim survives; the trait claim is untestable here.** Colocalisation calls change far more inside FDR-flagged discordance windows (reference 37.1% vs 29.9%, OR 1.38 p=0.028; aligner 8.0% vs 2.5%, **OR 3.44 p=0.00028**) — the genome-wide test was diluting this. The apparent brain-trait deficit (OR 0.70, p=0.014) survives checks on source (p=1), call confidence, and coverage (adjusted OR 0.68, p=0.010) but **not on GWAS signal strength**: brain studies are ~3 orders of magnitude weaker in-window (median 10⁻⁶·² vs 10⁻⁹·⁴), and matched on signal the difference is n.s. (OR 0.80, p=0.15; joint with coverage 0.78, p=0.12). **The disease-gene-set test is retracted** as circular. | `gwas_coloc_bayesian_20260817`, `neuro_gene_sets_20260817` |
 
 | Background noise: HWE and allele balance | **Pangenomic alignment removes the duplicated-sequence penalty; the reference change does not.** On 1,654,230 matched variants, linear arms show elevated collapse signatures in duplicated sequence (excess het 0.283%/0.262%, skewed-het share 0.065/0.056) that the graph arms do not (0.087%/0.082%, 0.039/0.039 — at their ordinary-sequence level). Aligner swap moves excess het −0.195pp in duplicated sequence; reference swap −0.021pp, and its allele-balance effect is n.s. on the graph axis. **First result where an arm is cleaner** — and it separates precision (unchanged) from genotype fidelity (improved). | `background_noise_hwe_ab_20260817` |
+
+| Crossed association | **The reference contrast is dominated by RNA re-quantification.** Running the missing cells of the design (GRCh38 genotypes x T2T expression, and a T2T control through identical code) decomposes a 21.7% eGene turnover into 20.1% from expression alone and only 6.6% from genotypes alone. The control reproduces the published linear_t2t_dv arm exactly (0.9% turnover, r = 0.9999, 100% top-variant agreement), so the machinery is validated. Gene-class enrichments must be recomputed on the genotype term. | `crossed_reference_association_20260821` |
 
 ## Known risks
 

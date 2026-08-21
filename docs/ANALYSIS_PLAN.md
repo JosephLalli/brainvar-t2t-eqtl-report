@@ -891,6 +891,73 @@ independent instruments, and *which diseases it matters for* is not established 
 
 ---
 
+**Decompose the reference contrast into genotype and phenotype terms.** `[COMPLETE]`
+Run root `runs/crossed_reference_association_20260821`.
+
+*Why.* Expression is quantified once per **reference**, not once per arm. An aligner swap
+therefore holds the phenotype exactly fixed while a reference swap changes the genotypes, the
+RNA alignment and annotation, and the expression covariates together. The published reference
+contrast cannot say which of those moves the result. This runs the missing cell.
+
+| Cell | genotypes | expression |
+|---|---|---|
+| published `linear_grch38_dv` | GRCh38 | GRCh38 |
+| **crossed** (new) | GRCh38 | T2T |
+| **control** (new) | T2T | T2T |
+| published `linear_t2t_dv` | T2T | T2T |
+
+Both new cells run through identical code, so control-versus-crossed differs *only* in the
+genotype matrix. GRCh38 variants are relabelled into the common frame and dosages recoded to
+2 − d on the 30.60% that swap reference and alternate;
+8,700,370 of 8,848,118 GRCh38 variants carry a unique common identity.
+
+*The gate.* Control against the published `linear_t2t_dv` — the same cell by two code paths,
+differing only in a seed derived from the cell name:
+
+| | genes | eGenes | turnover | r | top variant |
+|---|---|---|---|---|---|
+| control vs published | 18,114 | 3,043 vs 3,041 | **0.9%** | **0.9999** | **100.0%** |
+
+The relabelling machinery reproduces production exactly, so the crossed number is interpretable.
+
+*The result.*
+
+| Contrast | differs in | eGene turnover | r | top variant |
+|---|---|---|---|---|
+| control vs crossed | **genotypes only** | **6.6%** | 0.9927 | 72.2% |
+| crossed vs published GRCh38 | **expression only** | **20.1%** | 0.9409 | — |
+| published T2T vs GRCh38 | both, as published | **21.7%** | 0.9380 | — |
+
+**The published reference contrast is dominated by RNA re-quantification, not by genotype
+representation.** Swapping expression alone reproduces 20.1%
+of the 21.7% confounded turnover; swapping
+genotypes alone gives 6.6%. The correlations agree: a genotype
+swap barely moves gene-level significance
+(r = 0.9927) while an expression swap accounts
+for essentially the whole drop
+(0.9409 against the confounded
+0.9380).
+
+*How this sits with the magnitude result.* The expression-stratification analysis
+(`runs/expression_confound_decomposition_20260819`) found the roughly nine-fold
+reference-to-aligner ratio in median |Δz| survives holding expression stable. Both are true and
+they measure different things: that is variant-level effect *magnitude*, this is gene-level
+call *identity*. The gene-class and disease enrichments are computed on call identity, which is
+the quantity dominated by expression.
+
+*Bounds.* eGene turnover counts calls crossing a threshold rather than measuring how far
+effects move, and is conditional on genes in the T2T annotation. The crossed cell is not a
+biologically meaningful pipeline — nobody calls variants on one reference and quantifies RNA on
+another — and exists only to separate the two terms. Top-variant agreement is interpretable
+only for the genotype term; it reads 0.0% elsewhere because the two sides use different
+identifier coordinate systems, which is a formatting artefact.
+
+*What still needs doing.* The gene-class and disease enrichments should be recomputed on the
+genotype term alone. Whichever survive are attributable to variant representation; whichever do
+not belong to RNA quantification and must be described that way.
+
+---
+
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
 

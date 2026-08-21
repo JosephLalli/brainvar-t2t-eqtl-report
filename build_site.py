@@ -521,6 +521,30 @@ PP4_CALLED = _pp["called_in_either"]["median"]
 PP4_STRONG = _pp["strong_in_either"]["median"]
 PP4_STRONG_MOVE = _pp["strong_in_either"]["share_moving_over_0.2"]
 
+XD = DATA["crossed"]
+XG = XD["genotype_term"]
+XE = XD["expression_term"]
+XC = XD["confounded_reference_contrast"]
+XGATE = XD["gate"]
+
+t_crossed = table(
+    ["Contrast", "Differs in", "eGene turnover", "Correlation of gene significance"],
+    [["control vs crossed", "<strong>genotypes only</strong>",
+      f'<strong>{XG["turnover"]:.1%}</strong>',
+      f'{XG["pearson_r_neglog10_pvalbeta"]:.4f}'],
+     ["crossed vs published GRCh38", "<strong>expression only</strong>",
+      f'<strong>{XE["turnover"]:.1%}</strong>',
+      f'{XE["pearson_r_neglog10_pvalbeta"]:.4f}'],
+     ["published T2T vs published GRCh38", "both, as published",
+      f'<strong>{XC["turnover"]:.1%}</strong>',
+      f'{XC["pearson_r_neglog10_pvalbeta"]:.4f}']],
+    cls="numeric",
+    note=f'Turnover is the share of the eGene union called in one cell and not the other. The '
+         f'control cell reproduces the published T2T arm at {XGATE["turnover"]:.1%} turnover, '
+         f'r = {XGATE["pearson_r_neglog10_pvalbeta"]:.4f} and '
+         f'{XGATE["top_variant_agreement_among_shared_egenes"]:.0%} top-variant agreement, '
+         f'which is what validates the machinery.')
+
 AO = DATA["allele_orientation"]
 _g38 = ("linear_grch38_dv", "graph_grch38_dv")
 flip_lin = AO["linear_grch38_dv"]["flipped_share"]
@@ -922,8 +946,30 @@ quantified once per <em>reference</em> rather than once per arm, so swapping ali
 phenotype exactly fixed while swapping reference changes the genotypes, the RNA alignment and
 annotation, the expression covariates, and sometimes the set of testable genes. The reference
 contrast therefore measures an end-to-end <strong>reference ecosystem effect</strong>, not an
-isolated genotype-reference effect, and every reference-axis number below should be read that
-way. The two
+isolated genotype-reference effect.</p>
+
+<p><strong>That is not a caveat but a measurement, and it has been made.</strong> Running the
+missing cell of the design — one reference's genotypes against the other's expression, plus a
+control that passes the matching genotypes through identical code — separates the two terms.</p>
+
+{t_crossed}
+
+<p><strong>The published reference contrast is dominated by RNA re-quantification rather than
+by genotype representation.</strong> Swapping the expression alone reproduces
+{XE["turnover"]:.1%} of the {XC["turnover"]:.1%} turnover a full reference swap produces;
+swapping the genotypes alone gives {XG["turnover"]:.1%}. The correlations say the same thing: a
+genotype swap barely moves gene-level significance
+(r = {XG["pearson_r_neglog10_pvalbeta"]:.4f}), while an expression swap accounts for
+essentially the whole drop.</p>
+
+<p>Read every reference-axis result below with that in mind. It does not make them wrong, and
+the effect-size magnitudes reported later survive holding expression stable — but the question
+of <em>which genes</em> a reference swap moves is largely a question about RNA quantification,
+and the gene-class and disease enrichments are computed on exactly that. Those have not yet
+been recomputed on the genotype term alone. The aligner axis is unaffected throughout, because
+it holds the phenotype exactly fixed by construction.</p>
+
+<p>The two
 factors are crossed, so each can be read off separately, and an effect that appears
 under only one level of the other factor is identifiable as exactly that.</p>
 

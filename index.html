@@ -179,8 +179,30 @@ quantified once per <em>reference</em> rather than once per arm, so swapping ali
 phenotype exactly fixed while swapping reference changes the genotypes, the RNA alignment and
 annotation, the expression covariates, and sometimes the set of testable genes. The reference
 contrast therefore measures an end-to-end <strong>reference ecosystem effect</strong>, not an
-isolated genotype-reference effect, and every reference-axis number below should be read that
-way. The two
+isolated genotype-reference effect.</p>
+
+<p><strong>That is not a caveat but a measurement, and it has been made.</strong> Running the
+missing cell of the design — one reference's genotypes against the other's expression, plus a
+control that passes the matching genotypes through identical code — separates the two terms.</p>
+
+<div class="tablewrap"><table class="numeric"><thead><tr><th>Contrast</th><th>Differs in</th><th>eGene turnover</th><th>Correlation of gene significance</th></tr></thead><tbody><tr><td>control vs crossed</td><td><strong>genotypes only</strong></td><td><strong>6.6%</strong></td><td>0.9927</td></tr><tr><td>crossed vs published GRCh38</td><td><strong>expression only</strong></td><td><strong>20.1%</strong></td><td>0.9409</td></tr><tr><td>published T2T vs published GRCh38</td><td>both, as published</td><td><strong>21.7%</strong></td><td>0.9380</td></tr></tbody></table></div><p class="tnote">Turnover is the share of the eGene union called in one cell and not the other. The control cell reproduces the published T2T arm at 0.9% turnover, r = 0.9999 and 100% top-variant agreement, which is what validates the machinery.</p>
+
+<p><strong>The published reference contrast is dominated by RNA re-quantification rather than
+by genotype representation.</strong> Swapping the expression alone reproduces
+20.1% of the 21.7% turnover a full reference swap produces;
+swapping the genotypes alone gives 6.6%. The correlations say the same thing: a
+genotype swap barely moves gene-level significance
+(r = 0.9927), while an expression swap accounts for
+essentially the whole drop.</p>
+
+<p>Read every reference-axis result below with that in mind. It does not make them wrong, and
+the effect-size magnitudes reported later survive holding expression stable — but the question
+of <em>which genes</em> a reference swap moves is largely a question about RNA quantification,
+and the gene-class and disease enrichments are computed on exactly that. Those have not yet
+been recomputed on the genotype term alone. The aligner axis is unaffected throughout, because
+it holds the phenotype exactly fixed by construction.</p>
+
+<p>The two
 factors are crossed, so each can be read off separately, and an effect that appears
 under only one level of the other factor is identifiable as exactly that.</p>
 
