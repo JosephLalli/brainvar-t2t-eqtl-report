@@ -95,6 +95,8 @@ and is the single most informative thing left to do.
 
 | Caller axis on GRCh38 | **The caller effect is a property of the callers, not of T2T.** The caller term replicates across references (9.7% on T2T, 9.4% on GRCh38). On one phenotype side, with expression held fixed by construction, a caller swap moves 1.64x as much as an aligner swap (9.4% vs 5.7%) -- the matched comparison the T2T arm could not make. Association-level order: caller > reference (6.7%) > aligner, matching the allele-frequency yardstick. Correlations span two parts in a thousand across all three, so these differ in threshold crossings rather than in how hard they push. | `caller_axis_grch38_20260821` |
 
+| chrX two-sided, finding 5, Methods | **Three chromosome X cells reported as null are strong depletions.** The published p-values were one-sided in the enrichment direction and seven of eight cells have an odds ratio below one, so they could not return a small p. Retested two-sided: 0.18, 0.16 and 0.24 at p ≤ 7e-09. **Sharpens the result**: chrX is ordinarily more stable than the autosomes under an aligner swap and reverses by 40x in one cell, rather than one spike against silence. Also repaired the manifest that denied its own dosage audit (review finding 5, the last verified one), and gave Methods a provenance table with every parameter, version and joint-calling detail read from an artifact. | `chrx_discordance_by_sex_20260816` |
+
 ## Known risks
 
 - **chrX must be reported as XX-specific.** The whole-cohort 22.3% figure is a

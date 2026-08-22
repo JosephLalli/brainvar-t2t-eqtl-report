@@ -7,6 +7,7 @@ transcribed by hand, so the text cannot drift from the run tree.
 """
 from __future__ import annotations
 
+import html
 import json
 import math
 from pathlib import Path
@@ -232,17 +233,74 @@ t_gene_classes = table(
          "treat genes as independent and genes in one duplicated block are not, so the odds "
          "ratios are the trustworthy part.")
 
+PV = DATA["provenance"]
+PVA, PVG = PV["association"], PV["genotype_derivation"]
+
+t_provenance = table(
+    ["Stage", "What was used"],
+    [["Primary cis scan",
+      f'&plusmn;{PVA["cis_window_bp"] // 10**6}&nbsp;Mb window, MAF &ge; '
+      f'{PVA["maf_threshold"]}, {PVA["permutations"]:,} permutations, '
+      f'{PVA["expression_pcs"]} expression PCs and {PVA["genotype_pcs"]} genotype PCs in '
+      f'{PVA["covariate_columns"]} covariate columns, Benjamini-Hochberg at '
+      f'{PVA["fdr"]:.0%}'],
+     ["Seeding",
+      f'root seed {PVA["root_seed"]}; {PVA["seed_rule"]}'],
+     ["Missing genotypes",
+      "Missing dosages reach tensorqtl as the <code>-9</code> sentinel its mean imputation "
+      "recognises. IEEE NaN, which the derivation produces, is silently dropped by that "
+      "imputation instead of being imputed — a defect this project was bitten by once, and "
+      "the conversion exists to prevent it."],
+     ["Genotype derivation",
+      # The commands carry <cohort> and <reference fasta> placeholders, which a browser
+      # parses as tags unless they are escaped.
+      "<br>".join(f'<code>{html.escape(c)}</code>' for c in PVG["stages"])],
+     ["Accepted FILTER token",
+      f'DeepVariant arms: {PVG["accepted_filter_token"]["deepvariant_arms"]}<br>'
+      f'HaplotypeCaller arm: {PVG["accepted_filter_token"]["haplotypecaller_arm"]}'],
+     ["After derivation", PVG["post_filters"]],
+     ["Joint calling",
+      f'DeepVariant arms: {PV["joint_calling"]["deepvariant_arms"]}<br>'
+      f'HaplotypeCaller arm: {PV["joint_calling"]["haplotypecaller_arm"]}'],
+     ["References",
+      f'{PV["references"]["t2t"]}<br>{PV["references"]["grch38"]}'],
+     ["Compute", f'{PVA["gpus"]}'],
+     ["Software",
+      ", ".join(f'{k}&nbsp;{v}' for k, v in PV["software"].items()
+                if k in ("python", "tensorqtl", "torch", "numpy", "scipy", "pandas",
+                         "polars", "sklearn", "pyarrow"))
+      + "<br>" + "; ".join(PV["software"][k] for k in ("bcftools", "htslib", "bedtools")
+                           if PV["software"][k] != "unavailable")]],
+    note="Read from the run tree rather than transcribed: association parameters from a "
+         "published arm's run record, derivation commands from the command list that run "
+         "stored, joint-calling provenance from the callset headers, library versions from "
+         "the interpreter that executed the analyses.")
+
+CHRX2 = DATA["chrx_by_sex"]["two_sided"]["results"]
+
+
+def _chrx_cell(key):
+    """Odds with the two-sided p beneath, since the published p could only see enrichment."""
+    return (f'<strong>{CHRX[key]["odds_ratio"]:.2f}</strong><br>'
+            f'<span class="sub">p = {sci(CHRX2[key]["p_two_sided"])}</span>')
+
+
 t_chrx = table(
     ["Contrast", "XX: chrX vs autosomal", "XX odds", "XY: chrX vs autosomal", "XY odds"],
     [[CONTRAST_LABEL[k],
       f'{CHRX[f"{k}::XX"]["chrx_rate"]:.1%} vs {CHRX[f"{k}::XX"]["autosomal_rate"]:.1%}',
-      f'<strong>{CHRX[f"{k}::XX"]["odds_ratio"]:.2f}</strong>',
+      _chrx_cell(f"{k}::XX"),
       f'{CHRX[f"{k}::XY"]["chrx_rate"]:.1%} vs {CHRX[f"{k}::XY"]["autosomal_rate"]:.1%}',
-      f'{CHRX[f"{k}::XY"]["odds_ratio"]:.2f}'] for k in CONTRAST_ORDER],
+      _chrx_cell(f"{k}::XY")] for k in CONTRAST_ORDER],
     cls="numeric",
     note="Each stratum is compared against its own autosomes, so the difference in stratum "
-         "size cannot drive the comparison. chrX dosage encoding was audited and is identical "
-         "across all four arms, which excludes differential ploidy handling.")
+         "size cannot drive the comparison. <strong>The p-values are two-sided.</strong> The "
+         "figures first published here were one-sided in the enrichment direction, which "
+         "returns p at or near 1 for any cell with an odds ratio below one whatever the data "
+         "show — and seven of these eight are below one. Three cells previously reported as "
+         "null are strong depletions. On the ploidy control: no arm uses diploid encoding for "
+         "hemizygous X, but the arms are not identical in it, and the spread is given in the "
+         "text below rather than claimed away here.")
 
 t_universe = table(
     ["", "GRCh38 only", "T2T only", "Shared"],
@@ -2172,12 +2230,32 @@ sex, the effect turns out to live in a single cell of the design.</p>
 <p>In XX donors, pangenomic alignment on T2T moves
 <strong>{chrx_hit["chrx_rate"]:.1%}</strong> of chromosome X genes against
 {chrx_hit["autosomal_rate"]:.1%} of autosomal genes — odds of
-<strong>{chrx_hit["odds_ratio"]:.2f}</strong>. In XY donors the same comparison gives
-{CHRX["graph_minus_linear_t2t::XY"]["odds_ratio"]:.2f}: chromosome X moves <em>less</em> than
-the autosomes. The remaining six cells sit between
-{min(CHRX[f"{k}::{s}"]["odds_ratio"] for k in REF_KEYS + [WF_KEYS[0]] for s in ("XX", "XY")):.2f}
-and
-{max(CHRX[f"{k}::{s}"]["odds_ratio"] for k in REF_KEYS for s in ("XX", "XY")):.2f}.</p>
+<strong>{chrx_hit["odds_ratio"]:.2f}</strong>, at p =
+{sci(CHRX2["graph_minus_linear_t2t::XX"]["p_two_sided"])}. Every other cell in the design sits
+<em>below</em> one: chromosome X is less likely to move than the autosomes everywhere else.</p>
+
+<p><strong>And in three of those cells that depletion is strong and highly significant</strong>
+— {CHRX["graph_minus_linear_grch38::XX"]["odds_ratio"]:.2f} and
+{CHRX["graph_minus_linear_grch38::XY"]["odds_ratio"]:.2f} for an aligner swap on GRCh38, and
+{CHRX["graph_minus_linear_t2t::XY"]["odds_ratio"]:.2f} for the XY stratum of the very contrast
+that produces the effect, at p between
+{sci(min(CHRX2[k]["p_two_sided"] for k in ("graph_minus_linear_grch38::XY",)))} and
+{sci(max(CHRX2[k]["p_two_sided"] for k in ("graph_minus_linear_t2t::XY",)))}. That is a
+four- to six-fold depletion, and it makes the result sharper rather than weaker. The pattern is
+not one spike against silence. It is a consistent background in which chromosome X is
+<em>more</em> stable than the autosomes under an aligner swap, and a single cell in which that
+reverses by a factor of forty — the cell where T2T's complete X and two X haplotypes give the
+graph both the material and the opportunity to resolve something.</p>
+
+<div class="callout">
+<p><strong>Those three depletions were previously reported here as showing nothing.</strong>
+The p-values first published were one-sided in the enrichment direction, so a cell could be
+depleted by any amount and still return p = 1. Seven of the eight cells have an odds ratio
+below one, so seven of eight could not have produced a small p whatever the data contained.
+The counts were always sufficient to test properly and are unchanged; only the test is. The
+correction is recorded in <code>TWO_SIDED_CORRECTION.json</code> beside the original run,
+which retains the published values so the record shows both.</p>
+</div>
 
 <p>This is not a power artifact — the null stratum is the larger one, with 133 XY donors
 against 92 XX. Nor is it a ploidy-encoding artifact: chromosome X dosages were audited in all
@@ -2669,7 +2747,12 @@ which is a different experiment from this one.</p>
       ({EXCL["t2t_minus_grch38_linear"]["call_rate_ratio"]:.2f}×). A yield count cannot tell
       those apart.</li>
   <li>The chromosome X effect is specific to XX donors under pangenomic alignment on T2T
-      (odds {chrx_hit["odds_ratio"]:.2f}); the other seven cells of the design show nothing.</li>
+      (odds {chrx_hit["odds_ratio"]:.2f}, p =
+      {sci(CHRX2["graph_minus_linear_t2t::XX"]["p_two_sided"])}). The other seven cells all sit
+      below one, and three are significant <em>depletions</em> of
+      {CHRX["graph_minus_linear_grch38::XY"]["odds_ratio"]:.2f} to
+      {CHRX["graph_minus_linear_t2t::XY"]["odds_ratio"]:.2f} — so chromosome X is ordinarily
+      more stable than the autosomes under an aligner swap, and reverses only there.</li>
   <li><strong>A reference swap is not ancestry-neutral.</strong> Moving to T2T reduces
       European-ancestry donors' non-reference load by {abs(anc_ref["by_group"]["EUR"]):.3f} and
       raises African-ancestry donors' by {abs(anc_ref["by_group"]["AFR"]):.3f}, identically
@@ -2787,6 +2870,15 @@ derived per arm; three genotype principal components (the knee is at 3 in all fo
 the third-to-fourth eigenvalue gap two orders of magnitude above the bulk gap floor).
 Expression quantified natively against each reference, with gene universes frozen per
 reference rather than intersected. Association testing with TensorQTL on two NVIDIA L4 GPUs.</p>
+
+{t_provenance}
+
+<p><strong>The aligners are the one thing this page cannot name.</strong> No artifact the
+analysis reads records the per-sample aligner or its version — the callset headers carry the
+joint-calling provenance and nothing upstream of it. What the callset identifiers do establish
+is that {PV["aligners"]["graph_arms"]}, and that {PV["aligners"]["linear_arms"]}. The aligner
+axis is therefore identified by callset rather than by tool version, and that gap is stated
+here rather than filled by inference.</p>
 
 <p>Per-stratum degrees of freedom in the stratified analyses are 60 for XX and 101 for XY,
 from 30 covariates. Between-sex nulls are simulated parametrically with one replicate at a

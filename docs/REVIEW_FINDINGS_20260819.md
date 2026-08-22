@@ -5,9 +5,11 @@ reproducibility) were run against the page, the generator, the docs and the run 
 records what was **verified against the run tree**, what is **reported but unverified**, and
 what survives. Roughly 45 findings were returned; the ones that change conclusions are here.
 
-**Findings 1-4, 6 and 7 are closed and the corrections are live.** What remains is finding 5 (a
-manifest contradicting its own directory, in the analysis workspace) and the provenance and
-Methods-completeness items in the unverified section.
+**All seven verified findings are closed and the corrections are live.** The Methods completeness
+items are also addressed: the page now carries a provenance table naming every association
+parameter, derivation command, joint-calling tool and library version, read from artifacts rather
+than transcribed. What remains of the unverified section is the run-root manifest and SHA-256
+coverage across the workspace, which no result depends on.
 
 ---
 
@@ -116,6 +118,8 @@ in how much chrX they test. That sentence is the control guarding the OR 7.27 re
 
 The same run's `MANIFEST.json` records `"dosage_audit": {"skipped": "no sex labels resolved"}`
 while the completed audit (92 XX, 133 XY) sits beside it.
+
+**Closed 2026-08-22.** The `dosage_audit` field now points at `dosage_audit.json` and records what it previously read. Correcting it surfaced a second defect in the same run: the p-values are one-sided in the enrichment direction, so the seven cells with an odds ratio below one were untestable, and three of them are strong depletions (0.16-0.24, p between 3e-11 and 7e-09). Both are recorded in `TWO_SIDED_CORRECTION.json` and on the page.
 
 ### 6. A surviving enrichment result goes unreported
 

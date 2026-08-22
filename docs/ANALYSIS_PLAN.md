@@ -1352,6 +1352,86 @@ only; the mirror cell on the GRCh38 side was never built.
 
 ---
 
+**The chromosome X cells were tested one-sided.** `[COMPLETE]`
+Run root `runs/chrx_discordance_by_sex_20260816`, correction in
+`TWO_SIDED_CORRECTION.json`.
+
+The published p-values are one-sided in the enrichment direction. Seven of the eight cells
+have an odds ratio below one, so seven of eight could not return a small p whatever the data
+contained, and the page reported them as showing nothing. The counts in the manifest were
+always sufficient to test properly, so nothing was re-run: the same Fisher table was evaluated
+two-sided.
+
+| Contrast | Stratum | Odds | Published p | Two-sided p | Verdict |
+|---|---|---|---|---|---|
+| T2T - GRCh38 - linear | XX | 0.71 | 0.954 | **0.15** |  |
+| T2T - GRCh38 - linear | XY | 0.91 | 0.727 | **0.66** |  |
+| T2T - GRCh38 - graph | XX | 0.72 | 0.953 | **0.15** |  |
+| T2T - GRCh38 - graph | XY | 0.84 | 0.842 | **0.43** |  |
+| graph - linear - GRCh38 | XX | 0.18 | 1 | **1.3e-10** | **changed** |
+| graph - linear - GRCh38 | XY | 0.16 | 1 | **3.2e-11** | **changed** |
+| graph - linear - T2T | XX | 7.27 | 3.82e-85 | **3.8e-85** |  |
+| graph - linear - T2T | XY | 0.24 | 1 | **7.5e-09** | **changed** |
+
+**Three cells reported as null are strong depletions**, at odds
+0.16 to
+0.24 and p between
+3e-11 and
+7e-09. That is a four- to six-fold depletion.
+
+**This makes the chromosome X result sharper, not weaker.** The published framing was one
+spike against silence, which invites the reading that the spike is a fluke. The actual pattern
+is a consistent background in which chromosome X is *more* stable than the autosomes under an
+aligner swap, and a single cell in which that reverses by a factor of forty -- the cell where
+T2T's complete X and two X haplotypes give the graph both the material and the opportunity.
+A forty-fold swing against a consistent background is far better supported than a single
+outlier against nothing.
+
+Neither the original results nor the original p-values were overwritten; both sit beside the
+corrected ones so the record shows what was published and what replaced it.
+
+---
+
+**Finding 5: a manifest that denied its own audit.** `[COMPLETE]`
+
+The same run's `MANIFEST.json` recorded `dosage_audit: {"skipped": "no sex labels
+resolved"}` while the completed audit, 92 XX and 133 XY, sat beside it in the same directory.
+The audit had been run; the manifest was never updated. The field now points at
+`dosage_audit.json` and carries a note saying what it previously read. This was the last of the
+seven verified findings from the August 2026 review.
+
+---
+
+**Methods now name their own parameters.** `[COMPLETE]`
+
+The review found the Methods section omitting the primary scan's cis window, MAF threshold,
+permutation count and seed rule, naming no software versions, and never naming the aligners.
+The page now carries a provenance table, every value read from an artifact rather than typed:
+association parameters from a published arm's `run.json`, derivation commands from the command
+list that run stored, joint-calling provenance from the callset headers, library versions from
+the interpreter that executed the analyses.
+
+- Primary scan: ±1 Mb, MAF ≥
+  0.05, 10,000 permutations,
+  35 expression PCs and
+  3 genotype PCs in
+  51 covariate columns, BH at
+  5%.
+- Seeding: root seed 42, per-cell block seed from
+  sha256 of root, cell and block.
+- Joint calling: GLnexus v1.4.1-0-g68e25e5, config DeepVariantWGS for the DeepVariant arms;
+  GATK 4.2.6.1 with VQSR for the HaplotypeCaller arm.
+- Software: 3.11.14 Python, tensorqtl 1.0.10,
+  bcftools 1.22-12-g92c31be0, bedtools v2.31.1.
+
+**One gap is stated rather than filled.** No artifact this analysis reads names the per-sample
+aligner or its version; the callset VCF headers carry the joint-calling provenance and nothing
+upstream of it. The aligner axis is identified by callset -- vg-based for the graph arms, per
+the identifiers `vg_grch38_dv_jointcall` and `brainvar2.vg.t2t` -- rather than by tool version.
+That is on the page as a limitation of the record, not smoothed over with a plausible guess.
+
+---
+
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
 
