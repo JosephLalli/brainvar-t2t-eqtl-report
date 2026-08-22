@@ -599,6 +599,39 @@ t_enrichment_terms = table(
          f'service, which is why the other three contrasts return nothing rather than a long '
          f'weak list.')
 
+CAA = DATA["caller_axis_association"]
+CAR = CAA["results"]
+
+t_caller_axis = table(
+    ["What changes", "eGenes", "Shared", "eGene turnover",
+     "Correlation of gene significance"],
+    [["<strong>Variant caller</strong><br><span class=\"sub\">DeepVariant &rarr; "
+      "HaplotypeCaller</span>",
+      f'{CAR["caller_term"]["egenes_a"]:,} / {CAR["caller_term"]["egenes_b"]:,}',
+      f'{CAR["caller_term"]["shared"]:,}',
+      f'<strong>{CAR["caller_term"]["turnover"]:.1%}</strong>',
+      f'{CAR["caller_term"]["pearson_r_neglog10_pvalbeta"]:.4f}'],
+     ["<strong>Reference</strong><br><span class=\"sub\">T2T &rarr; GRCh38 genotypes</span>",
+      f'{CAR["reference_genotype_term_autosomes"]["egenes_a"]:,} / '
+      f'{CAR["reference_genotype_term_autosomes"]["egenes_b"]:,}',
+      f'{CAR["reference_genotype_term_autosomes"]["shared"]:,}',
+      f'<strong>{CAR["reference_genotype_term_autosomes"]["turnover"]:.1%}</strong>',
+      f'{CAR["reference_genotype_term_autosomes"]["pearson_r_neglog10_pvalbeta"]:.4f}'],
+     ["Nothing<br><span class=\"sub\">two runs of the same genotypes</span>",
+      f'{CAR["control_vs_crossed_control"]["egenes_a"]:,} / '
+      f'{CAR["control_vs_crossed_control"]["egenes_b"]:,}',
+      f'{CAR["control_vs_crossed_control"]["shared"]:,}',
+      f'{CAR["control_vs_crossed_control"]["turnover"]:.1%}',
+      f'{CAR["control_vs_crossed_control"]["pearson_r_neglog10_pvalbeta"]:.4f}']],
+    cls="numeric",
+    note='Autosomes only, on every row. Expression, covariates, gene positions and annotation '
+         'are held fixed at the published linear T2T arm throughout, so all three rows are the '
+         'same statistic computed by the same code and differ only in the genotype matrix. '
+         'The last row is the gate: two runs that differ only in random seed and load path. '
+         'The reference-axis figure is recomputed on autosomes rather than quoted from '
+         'elsewhere on this page, though the restriction barely moves it — 6.64% genome-wide '
+         'against the 6.7% here.')
+
 MD = XD["mappability_definitions"]
 MDR = MD["results"]
 MDA = MD["agreement"]
@@ -1331,6 +1364,56 @@ reference's distinctive effect is not that it measures shared variants different
 <em>what it can see at all</em>. That is what the gene universes and the arm-exclusive variants
 further down are measuring, and it is where the reference change actually lives.</p>
 </div>
+
+<h3 id="caller-association">Does that hold where it matters?</h3>
+
+<p>Allele frequency is one stage, and an early one. The comparison a reader actually needs is
+whether a caller swap moves the <em>eQTL map</em> more or less than a reference swap does, and
+until now this page could not say. Running the caller swap the same way the reference swap's
+genotype term was run — expression, covariates, gene positions and annotation all held fixed,
+only the genotype matrix changing — puts both on one footing.</p>
+
+{t_caller_axis}
+
+<p><strong>The ordering survives the journey.</strong> A caller swap turns over
+{CAR["caller_term"]["turnover"]:.1%} of the eGene union against
+{CAR["reference_genotype_term_autosomes"]["turnover"]:.1%} for a reference swap, about
+{CAA["caller_over_reference_ratio"]:.1f} times as much. Anyone comfortable with their choice of
+variant caller has accepted a larger perturbation than this page is about, at the endpoint and
+not merely at the callset.</p>
+
+<div class="callout">
+<p><strong>The correlations are the sobering half, and they belong next to the ratio.</strong>
+Gene-level significance correlates at {CAR["caller_term"]["pearson_r_neglog10_pvalbeta"]:.4f}
+across a caller swap and
+{CAR["reference_genotype_term_autosomes"]["pearson_r_neglog10_pvalbeta"]:.4f} across a
+reference swap — effectively no difference. So the
+{CAA["caller_over_reference_ratio"]:.2f}&thinsp;× is about threshold crossings, not about one
+axis perturbing the underlying statistics more than the other. Both changes are small and
+close in size; the caller change tips somewhat more genes across q = 0.05. Quoting the ratio
+alone would overstate what separates them.</p>
+</div>
+
+<p>Two things had to be settled before this comparison could be made honestly, and both
+changed its shape. The published arms are derived from a haploid-fixed callset and
+HaplotypeCaller has no such file, so whether that matters was measured rather than assumed:
+<strong>zero haploid genotype records across
+{CAA["haploid_evidence"]["autosomal_calls_checked"]:,} autosomal calls</strong>, against
+{CAA["haploid_evidence"]["non_par_chrx_haploid_share"]:.2%} on non-PAR chromosome X — the
+chromosome X figure being the positive control, since a test that could not detect haploid
+calls would report zero everywhere. Hence autosomes only. That restriction was not caution: on
+chromosome X the derivation blanked
+{CAA["genotype_counts"]["haplotypecaller_male_het_blanked"]:,} heterozygous calls in XY donors
+for HaplotypeCaller against 3,193 for DeepVariant, so run genome-wide the sex chromosomes alone
+would have manufactured a large caller difference with nothing to do with the calling
+model.</p>
+
+<p>And the two callers mark their confident calls differently, because this HaplotypeCaller
+callset has been through VQSR and DeepVariant has no counterpart step. Each is taken at its own
+designation, which compares them as a user of either would actually run them — but VQSR is much
+the more aggressive, keeping 82.8% of records against DeepVariant's 98.9% on a sample of
+chromosome 20. <strong>Part of the caller difference above is that filtering rather than the
+calling model</strong>, and this analysis cannot separate the two.</p>
 
 <h2 id="mechanism">What kind of difference it is</h2>
 
@@ -2454,7 +2537,14 @@ which is a different experiment from this one.</p>
       variants both references can represent it shifts
       {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of allele frequencies, against
       {DATA["yardstick"]["mean_by_axis"]["aligner"]:.2%} for an aligner swap and
-      {DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a variant-caller swap.</li>
+      {DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a variant-caller swap. The
+      ordering holds at the endpoint as well as at the callset: on autosomes, with expression
+      held fixed, a caller swap turns over {CAR["caller_term"]["turnover"]:.1%} of the eGene
+      union against {CAR["reference_genotype_term_autosomes"]["turnover"]:.1%} for a reference
+      swap. The gene-level correlations are near-identical
+      ({CAR["caller_term"]["pearson_r_neglog10_pvalbeta"]:.4f} against
+      {CAR["reference_genotype_term_autosomes"]["pearson_r_neglog10_pvalbeta"]:.4f}), so that
+      ratio is about threshold crossings rather than a larger perturbation.</li>
   <li><strong>Most of the map does not move.</strong> An aligner swap leaves
       {conc_calls_aligner:.1%} of association calls identical and a reference swap
       {conc_calls_ref:.1%}, with {1 - gene_moved_hi:.0%} to {1 - gene_moved_lo:.0%} of genes
@@ -2601,15 +2691,13 @@ which is a different experiment from this one.</p>
       sequencing with no per-donor assemblies, so nothing here can say which arm is
       <em>correct</em> — only which differ, and where. Every result on this page is a
       description of difference, not a verdict on a reference.</li>
-  <li><strong>The yardstick stops at allele frequency.</strong> The variant-caller
-      comparison that anchors the other two axes — a reference swap moves
-      {DATA["yardstick"]["mean_by_axis"]["reference"]:.2%} of allele frequencies against
-      {DATA["yardstick"]["mean_by_axis"]["caller"]:.2%} for a caller swap — exists only at that
-      stage. Nothing here says whether a caller swap would perturb the <em>association</em> map
-      more or less than a reference swap does, because scoring the caller axis through the same
-      window and gene pipelines needs its own genotype derivation and association run. The
-      anchor a reader needs for the effect sizes on this page is therefore only half
-      present.</li>
+  <li><strong>The caller axis is one caller pair on one reference.</strong> The
+      yardstick now reaches the association map (below), but it compares DeepVariant against
+      HaplotypeCaller on linear T2T and on autosomes only. Whether the ordering it produces
+      holds for another caller pair, on GRCh38, or on the sex chromosomes is untested. The
+      HaplotypeCaller callset has also been through VQSR, which DeepVariant has no counterpart
+      to, so some of the caller difference is a filtering policy rather than the calling
+      model.</li>
   <li><strong>What colocalisation cannot see.</strong> A gene-trait pair is only testable
       where a GWAS already has an association inside the gene's window, so the loci examined
       are the ones GWAS has already resolved. If representation choice bites hardest where

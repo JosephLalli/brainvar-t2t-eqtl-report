@@ -1218,6 +1218,74 @@ mappability is a mediator for segmental duplication and partly so for recurrent-
 
 ---
 
+**How big is a caller swap next to a reference swap, on the association map?**
+`[COMPLETE]`
+Run roots `runs/haplotypecaller_genotypes_20260821` and `runs/caller_axis_association_20260821`.
+
+The yardstick this project reports -- a reference swap moves 2.47% of allele frequencies
+against 6.17% for a caller swap -- existed only at the callset level. Nothing said whether
+swapping caller perturbs the *eQTL map* more or less than swapping reference, which is the
+calibration a reader needs before taking any reference-axis effect size seriously. This closes
+that, by running the caller swap exactly as the reference swap's genotype term was run:
+expression, covariates, gene positions and annotation all held fixed at the published linear
+T2T arm, only the genotype matrix changing.
+
+| Axis | eGenes | Shared | Turnover | r of gene-level significance |
+|---|---|---|---|---|
+| caller: DeepVariant vs HaplotypeCaller | 2,984 / 2,940 | 2,811 | **9.7%** | 0.9917 |
+| reference: T2T vs GRCh38 genotypes | 2,968 / 2,923 | 2,844 | **6.7%** | 0.9927 |
+| control: two T2T DeepVariant runs | 2,984 / 2,975 | 2,962 | 1.2% | 0.9999 |
+
+**A caller swap moves the map about 1.5 times as much as a
+reference swap does.** The control row is the gate: two runs of the same genotypes differing
+only in seed and load path agree to 1.2% turnover at r =
+0.9999, so the machinery is not manufacturing the difference.
+
+*The correlations are the more sobering half of this.* 0.9917
+for a caller swap against 0.9927 for a reference swap is
+effectively no difference at all. The 1.46x is therefore
+about threshold crossings, not about one axis perturbing the underlying statistics more than
+the other: both changes are small and of comparable size, and the caller change tips somewhat
+more genes across q = 0.05. Quoting the ratio without the correlations beside it would
+overstate what separates the two axes.
+
+*What had to be established first.* The four published arms derive from
+`*.joint_called.haploid_fixed.vcf.gz`; HaplotypeCaller has no such file. Running it anyway
+would have put a callset-preparation difference directly on the axis under test, so whether it
+matters was measured rather than assumed: **zero haploid genotype records across
+72,656,455 autosomal calls**, against
+0.37% on non-PAR chrX and the same on PAR1.
+The chrX figures are the positive control -- a test that could not detect haploid calls would
+report zero everywhere. **The comparison is therefore autosomes only**, and the reference-axis
+figure is recomputed on the same contigs rather than quoted, though the restriction costs
+almost nothing there (6.66% against 6.64% genome-wide).
+
+That restriction was not caution. On chrX the derivation blanked
+409,023 heterozygous calls in XY donors for HaplotypeCaller
+against 3,193 for DeepVariant, a 128-fold difference, and HaplotypeCaller carries
+0 half-calls where DeepVariant carries 773,793. Both are
+consequences of the missing haploid fix and both are confined to the sex chromosomes. Run
+genome-wide, chrX alone would have manufactured a large caller difference with nothing to do
+with the calling model.
+
+*Bounds.* The HaplotypeCaller callset has been through VQSR and DeepVariant has no counterpart
+step. Each caller is taken at its own pass designation -- FILTER `.` for DeepVariant, `PASS`
+for HaplotypeCaller -- which compares them as a user of either would actually run them, but
+VQSR is much the more aggressive, keeping 82.8% of records against DeepVariant's 98.9% on a
+chr20 sample. Part of the caller difference is therefore that filtering rather than the
+calling model. Hardy-Weinberg exclusions are carried over from the DeepVariant arm, which
+retains any site that would newly fail under HaplotypeCaller and is an upper bound on retained
+sites. Turnover counts threshold crossings and is coarse, which is why the correlation is
+reported beside it.
+
+*One silent failure worth recording.* The first derivation attempt ran for 29 minutes and
+exited successfully having produced **nothing**. The derivation keeps only records matching an
+accepted FILTER token and the published arms pass `.`; HaplotypeCaller emits no `.` records at
+all, so the filter matched every record out and bcftools reported success on an empty stream.
+The driver now refuses a zero-record stage, because the pipeline will not.
+
+---
+
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
 
