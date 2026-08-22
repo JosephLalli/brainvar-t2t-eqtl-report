@@ -602,35 +602,40 @@ t_enrichment_terms = table(
 CAA = DATA["caller_axis_association"]
 CAR = CAA["results"]
 
+CG8 = DATA["caller_axis_grch38"]
+CG8R = CG8["results"]
+
+
+def _row(label, sub, side, e):
+    return [f'<strong>{label}</strong><br><span class="sub">{sub}</span>', side,
+            f'{e["egenes_a"]:,} / {e["egenes_b"]:,}',
+            f'<strong>{e["turnover"]:.1%}</strong>',
+            f'{e["pearson_r_neglog10_pvalbeta"]:.4f}']
+
+
 t_caller_axis = table(
-    ["What changes", "eGenes", "Shared", "eGene turnover",
+    ["What changes", "Phenotype side", "eGenes", "eGene turnover",
      "Correlation of gene significance"],
-    [["<strong>Variant caller</strong><br><span class=\"sub\">DeepVariant &rarr; "
-      "HaplotypeCaller</span>",
-      f'{CAR["caller_term"]["egenes_a"]:,} / {CAR["caller_term"]["egenes_b"]:,}',
-      f'{CAR["caller_term"]["shared"]:,}',
-      f'<strong>{CAR["caller_term"]["turnover"]:.1%}</strong>',
-      f'{CAR["caller_term"]["pearson_r_neglog10_pvalbeta"]:.4f}'],
-     ["<strong>Reference</strong><br><span class=\"sub\">T2T &rarr; GRCh38 genotypes</span>",
-      f'{CAR["reference_genotype_term_autosomes"]["egenes_a"]:,} / '
-      f'{CAR["reference_genotype_term_autosomes"]["egenes_b"]:,}',
-      f'{CAR["reference_genotype_term_autosomes"]["shared"]:,}',
-      f'<strong>{CAR["reference_genotype_term_autosomes"]["turnover"]:.1%}</strong>',
-      f'{CAR["reference_genotype_term_autosomes"]["pearson_r_neglog10_pvalbeta"]:.4f}'],
-     ["Nothing<br><span class=\"sub\">two runs of the same genotypes</span>",
+    [_row("Variant caller", "DeepVariant &rarr; HaplotypeCaller", "GRCh38",
+          CG8R["caller_grch38"]),
+     _row("Aligner", "linear &rarr; pangenome graph", "GRCh38", CG8R["aligner_grch38"]),
+     _row("Variant caller", "DeepVariant &rarr; HaplotypeCaller", "T2T",
+          CG8R["caller_t2t"]),
+     _row("Reference", "T2T &rarr; GRCh38 genotypes", "T2T",
+          CG8R["reference_genotype_term"]),
+     ["Nothing<br><span class=\"sub\">two runs of the same genotypes</span>", "T2T",
       f'{CAR["control_vs_crossed_control"]["egenes_a"]:,} / '
       f'{CAR["control_vs_crossed_control"]["egenes_b"]:,}',
-      f'{CAR["control_vs_crossed_control"]["shared"]:,}',
       f'{CAR["control_vs_crossed_control"]["turnover"]:.1%}',
       f'{CAR["control_vs_crossed_control"]["pearson_r_neglog10_pvalbeta"]:.4f}']],
     cls="numeric",
-    note='Autosomes only, on every row. Expression, covariates, gene positions and annotation '
-         'are held fixed at the published linear T2T arm throughout, so all three rows are the '
-         'same statistic computed by the same code and differ only in the genotype matrix. '
-         'The last row is the gate: two runs that differ only in random seed and load path. '
-         'The reference-axis figure is recomputed on autosomes rather than quoted from '
-         'elsewhere on this page, though the restriction barely moves it — 6.64% genome-wide '
-         'against the 6.7% here.')
+    note='Autosomes only, on every row, and in every row expression, covariates, gene '
+         'positions and annotation are held fixed at that side\'s published linear '
+         'DeepVariant arm — so each row is the same statistic computed by the same code, '
+         'differing only in the genotype matrix. Rows sharing a phenotype side are directly '
+         'comparable to each other; rows on different sides are not, which is why the aligner '
+         'arm was run at all. The last row is the gate: two runs that differ only in random '
+         'seed and load path.')
 
 MD = XD["mappability_definitions"]
 MDR = MD["results"]
@@ -1367,31 +1372,48 @@ further down are measuring, and it is where the reference change actually lives.
 
 <h3 id="caller-association">Does that hold where it matters?</h3>
 
-<p>Allele frequency is one stage, and an early one. The comparison a reader actually needs is
-whether a caller swap moves the <em>eQTL map</em> more or less than a reference swap does, and
-until now this page could not say. Running the caller swap the same way the reference swap's
-genotype term was run — expression, covariates, gene positions and annotation all held fixed,
-only the genotype matrix changing — puts both on one footing.</p>
+<p>Allele frequency is one stage, and an early one. The comparison a reader actually needs
+is whether a caller swap moves the <em>eQTL map</em> more or less than a reference swap does,
+and until now this page could not say. Every row below is the same measurement: expression,
+covariates, gene positions and annotation held fixed, only the genotype matrix changing. The
+caller swap is run on both references, so it can be asked whether the answer is about the
+callers or about one reference; and on GRCh38 an aligner swap is run alongside it, because
+swapping aligner holds expression fixed by construction and so provides a comparator on
+exactly the same phenotype side.</p>
 
 {t_caller_axis}
 
-<p><strong>The ordering survives the journey.</strong> A caller swap turns over
-{CAR["caller_term"]["turnover"]:.1%} of the eGene union against
-{CAR["reference_genotype_term_autosomes"]["turnover"]:.1%} for a reference swap, about
-{CAA["caller_over_reference_ratio"]:.1f} times as much. Anyone comfortable with their choice of
+<p><strong>The ordering survives the journey, and it replicates.</strong> The caller term
+is {CG8R["caller_t2t"]["turnover"]:.1%} on T2T and
+{CG8R["caller_grch38"]["turnover"]:.1%} on GRCh38 — the same number twice, so it is a property
+of the two callers rather than of either reference. On the T2T side a caller swap moves
+{CAA["caller_over_reference_ratio"]:.1f} times as much as a reference swap; on the GRCh38 side,
+where an aligner swap supplies a comparator sharing a phenotype side exactly, it moves
+{CG8["caller_over_aligner_grch38"]:.2f} times as much as that. At the association level the
+three axes order <strong>caller &gt; reference &gt; aligner</strong>, which is the order the
+allele-frequency yardstick already gave at the callset. Anyone comfortable with their choice of
 variant caller has accepted a larger perturbation than this page is about, at the endpoint and
 not merely at the callset.</p>
 
+<p>One comparison in that table is deliberately not made. The reference term and the aligner
+term sit on different phenotype sides — the crossed cells that isolate a reference swap were
+only ever built against T2T expression — so the gap between
+{CG8R["reference_genotype_term"]["turnover"]:.1%} and
+{CG8R["aligner_grch38"]["turnover"]:.1%} mixes a genotype change with an annotation and
+quantification change, and nothing is claimed from it. Both are compared to the caller term on
+their own side instead, which is what the aligner arm exists to allow.</p>
+
 <div class="callout">
-<p><strong>The correlations are the sobering half, and they belong next to the ratio.</strong>
-Gene-level significance correlates at {CAR["caller_term"]["pearson_r_neglog10_pvalbeta"]:.4f}
-across a caller swap and
-{CAR["reference_genotype_term_autosomes"]["pearson_r_neglog10_pvalbeta"]:.4f} across a
-reference swap — effectively no difference. So the
-{CAA["caller_over_reference_ratio"]:.2f}&thinsp;× is about threshold crossings, not about one
-axis perturbing the underlying statistics more than the other. Both changes are small and
-close in size; the caller change tips somewhat more genes across q = 0.05. Quoting the ratio
-alone would overstate what separates them.</p>
+<p><strong>The correlations are the sobering half, and they belong next to the ratios.</strong>
+Gene-level significance correlates at
+{CG8R["caller_grch38"]["pearson_r_neglog10_pvalbeta"]:.4f} across a caller swap,
+{CG8R["reference_genotype_term"]["pearson_r_neglog10_pvalbeta"]:.4f} across a reference swap
+and {CG8R["aligner_grch38"]["pearson_r_neglog10_pvalbeta"]:.4f} across an aligner swap — a
+spread of two parts in a thousand across all three method axes. So the ratios above are about
+threshold crossings, not about one axis perturbing the underlying statistics harder than
+another. Every one of these is a small perturbation; they differ in how many genes they tip
+across q = 0.05. Quoting the ratios without this beside them would overstate what separates
+them.</p>
 </div>
 
 <p>Two things had to be settled before this comparison could be made honestly, and both
@@ -2691,13 +2713,20 @@ which is a different experiment from this one.</p>
       sequencing with no per-donor assemblies, so nothing here can say which arm is
       <em>correct</em> — only which differ, and where. Every result on this page is a
       description of difference, not a verdict on a reference.</li>
-  <li><strong>The caller axis is one caller pair on one reference.</strong> The
-      yardstick now reaches the association map (below), but it compares DeepVariant against
-      HaplotypeCaller on linear T2T and on autosomes only. Whether the ordering it produces
-      holds for another caller pair, on GRCh38, or on the sex chromosomes is untested. The
-      HaplotypeCaller callset has also been through VQSR, which DeepVariant has no counterpart
-      to, so some of the caller difference is a filtering policy rather than the calling
-      model.</li>
+  <li><strong>The caller axis is one caller pair.</strong> The yardstick now reaches the
+      association map on both references and gives the same answer on each, so the result is
+      not a property of T2T — but it is still DeepVariant against HaplotypeCaller, on
+      autosomes. Whether the ordering holds for another caller pair, or on the sex
+      chromosomes, is untested. Both HaplotypeCaller arms have also been through VQSR, which
+      neither DeepVariant arm has a counterpart to, so some of the caller difference is a
+      filtering policy rather than the calling model, and this design cannot separate the
+      two.</li>
+  <li><strong>The reference term exists on one phenotype side only.</strong> Isolating a
+      reference swap needs a crossed cell — one reference's genotypes against the other's
+      expression — and those were only ever built against T2T expression. So the reference
+      term cannot be set against the aligner term directly, and the table above does not.
+      Building the mirror cell on the GRCh38 side would close that, and has not been
+      done.</li>
   <li><strong>What colocalisation cannot see.</strong> A gene-trait pair is only testable
       where a GWAS already has an association inside the gene's window, so the loci examined
       are the ones GWAS has already resolved. If representation choice bites hardest where

@@ -1286,6 +1286,72 @@ The driver now refuses a zero-record stage, because the pipeline will not.
 
 ---
 
+**Does the caller ordering travel from T2T to GRCh38?** `[COMPLETE]`
+Run roots `runs/haplotypecaller_genotypes_grch38_20260821` and
+`runs/caller_axis_grch38_20260821`.
+
+The T2T caller arm found a caller swap turning over more of the eQTL map than a reference
+swap. That is two callers measured on one reference, and it needed testing on the other. It
+also needed a better comparator: the reference genotype term is measured on the T2T phenotype
+side, so setting a GRCh38 caller term against it would mix phenotype sides. The aligner axis
+supplies a matched one -- swapping linear for pangenome-graph alignment holds expression fixed
+by construction -- and its genotypes already existed, so three genotype matrices were run
+against one GRCh38 phenotype side.
+
+| Contrast | Phenotype side | eGenes | Turnover | r of gene significance |
+|---|---|---|---|---|
+| caller: DeepVariant vs HaplotypeCaller | GRCh38 | 3,010 / 2,990 | **9.4%** | 0.9914 |
+| aligner: linear vs graph | GRCh38 | 3,010 / 2,983 | **5.7%** | 0.9934 |
+| caller: DeepVariant vs HaplotypeCaller | T2T | 2,984 / 2,940 | 9.7% | 0.9917 |
+| reference: T2T vs GRCh38 genotypes | T2T | 2,968 / 2,923 | 6.7% | 0.9927 |
+
+**The caller term replicates almost exactly across references**: 9.7% on T2T
+against 9.4% on GRCh38. It is a property of the two callers rather than of
+either reference.
+
+**And on a single phenotype side the caller swap moves
+1.64 times as much as an aligner swap**
+(9.4% against 5.7%). Those two rows share expression,
+covariates, annotation, gene positions, contigs and code exactly; nothing differs between them
+but what changed in the genotypes. This is the comparison the T2T arm could not make, and it
+is the cleanest statement of the ordering anywhere in this project.
+
+Taken with the T2T arm, the three method axes at the association level order as
+**caller (9.7%-9.4%) > reference (6.7%)
+> aligner (5.7%)**, which is the same order the allele-frequency yardstick
+gives at the callset level. Two of the three pairings are matched on phenotype side; the
+reference-against-aligner comparison is not, because those two terms are measured on different
+sides, and it is not claimed.
+
+*The correlations again say the axes are closer than the turnover suggests.*
+0.9914 for a caller swap, 0.9934
+for an aligner swap, 0.9927 for a reference swap -- a spread of
+two parts in a thousand. Every one of these is a small perturbation of the underlying
+statistics; they differ in how many genes they tip across a threshold, not in how hard they
+push.
+
+*What had to be re-checked rather than carried over.* The haploid question has a different
+answer on this reference. Across all 271 samples the GRCh38 HaplotypeCaller callset **does**
+carry haploid records on autosomes, where the T2T one does not -- but every one belongs to
+`092_D1`, which is not among the 225 analysis donors, and after the derivation's subset none
+remain: zero across
+13,753,350 genotype calls. The T2T
+restriction, by contrast, rests on `578_D1`, which **is** in the cohort, so that arm genuinely
+needed it. Autosomes are used on both regardless, so the two caller terms are the same
+measurement.
+
+The sample-name drift also recurs on a different donor: DeepVariant's `5212_D2` is
+HaplotypeCaller's `5212` here, where on T2T it was `6085_D2` against `6085`. Confirmed the same
+person by genotype concordance (r = 0.9982 against unrelated controls at 0.52 and 0.66).
+
+*Bounds.* Both HaplotypeCaller arms have been through VQSR and neither DeepVariant arm has a
+counterpart step, so part of both caller figures is filtering rather than the calling model.
+All arms here are autosome-only re-runs, so their eGene counts do not match the published
+all-contig figures. The reference genotype term remains measured on the T2T phenotype side
+only; the mirror cell on the GRCh38 side was never built.
+
+---
+
 **Measure top-k rank concordance.** `[COMPLETE]` Run root
 `runs/topk_rank_concordance_20260816`.
 

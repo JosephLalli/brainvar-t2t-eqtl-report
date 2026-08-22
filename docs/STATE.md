@@ -19,9 +19,9 @@ Bayesian rather than a membership proxy.** What remains:
 - the page. It carries fifteen analyses across eighteen sections and about 14,000 words, and a
   **proposed reordering sits under Page status below, awaiting a decision.** That is a
   presentation change, not another result;
-- the variant-caller axis now reaches the association level on autosomes (`caller_axis_association_20260821`);
-  what remains is that it is one reference (linear T2T) and one caller pair, and that VQSR has no
-  DeepVariant counterpart.
+- the variant-caller axis reaches the association level on both references and replicates
+  (`caller_axis_association_20260821`, `caller_axis_grch38_20260821`); what remains is that it is
+  one caller pair, and that VQSR has no DeepVariant counterpart.
 
 **The open scientific question is now a specific one.** At the colocalisation endpoint the
 project's central prediction fails: psychiatric and neurodevelopmental colocalisations change
@@ -92,6 +92,8 @@ and is the single most informative thing left to do.
 | Mappability definition | **The weakest joint in the matched result turns out not to matter.** Mappability recomputed at the gene span, over the nominal cis window, and at the anchored variants themselves. Gene span and variant level agree (r = 0.76) and give the same adjusted odds ratios: segdup 2.06x vs 2.08x, genomic disorder 1.37x vs 1.27x. **The nominal cis window is the poor proxy** (r = 0.44) and under-adjusts, leaving every estimate nearer its crude value -- which is what measurement error in an adjustment covariate predicts. | `window_mappability_20260821` |
 
 | Caller axis at the association level | **A caller swap moves the eQTL map about 1.5x as much as a reference swap does** -- 9.7% eGene turnover against 6.7%, with expression, covariates and annotation held fixed on both, autosomes only. The gate holds: two runs of the same genotypes agree to 1.2%. But the gene-level correlations are near-identical (0.9917 against 0.9927), so the ratio is about threshold crossings rather than a larger perturbation. **The yardstick the page said was missing now exists at the association level, and it does not favour the page's framing.** Bounded by VQSR, which HaplotypeCaller has and DeepVariant has no counterpart to. | `caller_axis_association_20260821` |
+
+| Caller axis on GRCh38 | **The caller effect is a property of the callers, not of T2T.** The caller term replicates across references (9.7% on T2T, 9.4% on GRCh38). On one phenotype side, with expression held fixed by construction, a caller swap moves 1.64x as much as an aligner swap (9.4% vs 5.7%) -- the matched comparison the T2T arm could not make. Association-level order: caller > reference (6.7%) > aligner, matching the allele-frequency yardstick. Correlations span two parts in a thousand across all three, so these differ in threshold crossings rather than in how hard they push. | `caller_axis_grch38_20260821` |
 
 ## Known risks
 
